@@ -1,0 +1,72 @@
+# idotaku configuration
+# Copy this file to idotaku.yaml and customize as needed
+
+idotaku:
+  # Output file path
+  output: id_tracker_report.json
+
+  # Minimum numeric ID value to track (smaller values are ignored)
+  min_numeric: 100
+
+  # ID detection patterns (name: regex)
+  # These patterns are used to extract IDs from requests/responses
+  patterns:
+    uuid: "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
+    numeric: "[1-9]\\d{2,10}"
+    token: "[A-Za-z0-9_-]{20,}"
+    # Add custom patterns here:
+    # order_id: "ORD-[A-Z]{2}-\\d{8}"
+    # custom_id: "ID-[A-Z]{3}-\\d{6}"
+
+  # Patterns to exclude from ID detection (false positives)
+  exclude_patterns:
+    - "^\\d{10,13}$"      # Unix timestamp
+    - "^\\d+\\.\\d+\\.\\d+$"  # Version numbers
+
+  # Content types to parse for IDs
+  trackable_content_types:
+    - application/json
+    - application/x-www-form-urlencoded
+    - text/html
+    - text/plain
+
+  # Headers to ignore (blacklist) - all other headers are scanned for IDs
+  # Uncomment to override defaults completely:
+  # ignore_headers:
+  #   - content-type
+  #   - content-length
+  #   - user-agent
+  #   - host
+  #   - ...
+
+  # Additional headers to ignore (added to defaults)
+  extra_ignore_headers: []
+    # - x-internal-trace-id
+    # - x-debug-info
+
+  # Target domains - whitelist (empty = all domains)
+  target_domains:
+    - "*.example.com"
+    - "example.example.com"
+
+  # Exclude domains - blacklist (takes priority over target_domains)
+  # exclude_domains:
+  #   - analytics.example.com
+  #   - "*.tracking.com"
+  #   - "*.google-analytics.com"
+
+  # Exclude extensions - static files (default includes common static files)
+  # Uncomment to override defaults completely:
+  exclude_extensions:
+    - ".css"
+    - ".js"
+    - ".map"
+    - ".png"
+    - ".jpg"
+    - ".jpeg"
+    - ".gif"
+    - ".svg"
+    - ".ico"
+    - ".woff"
+    - ".woff2"
+    - ".ttf"
