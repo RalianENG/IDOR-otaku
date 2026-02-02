@@ -66,6 +66,9 @@ function renderNode(node, isRoot = false) {
     }
 
     html += '<span class="path">' + truncatePath(node.path, 40) + '</span>';
+    if (node.domain) {
+        html += '<span class="domain">' + node.domain + '</span>';
+    }
     html += '</div>';
 
     if (hasChildren) {
@@ -91,6 +94,9 @@ function renderTrees() {
         html += '<span style="color: #3fb950; font-weight: bold; margin-right: 6px;">[#' + tree.index + ']</span>';
         html += '<span class="method ' + tree.method + '">' + tree.method + '</span> ';
         html += '<span class="path">' + truncatePath(tree.path, 50) + '</span>';
+        if (tree.domain) {
+            html += '<span class="domain">' + tree.domain + '</span>';
+        }
         html += '<span class="stats">depth:' + tree.depth + ' nodes:' + tree.nodes + '</span>';
         html += '</div>';
         html += '<div class="tree-node">';

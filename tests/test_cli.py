@@ -198,6 +198,16 @@ class TestChainCommand:
         result = runner.invoke(main, ["chain", str(sample_report_file), "--min-depth", "1"])
         assert result.exit_code == 0
 
+    def test_chain_domain_filter(self, runner, sample_report_file):
+        """Test chain command with --domains option."""
+        result = runner.invoke(main, ["chain", str(sample_report_file), "--domains", "api.example.com"])
+        assert result.exit_code == 0
+
+    def test_chain_domain_filter_wildcard(self, runner, sample_report_file):
+        """Test chain command with wildcard domain filter."""
+        result = runner.invoke(main, ["chain", str(sample_report_file), "--domains", "*.example.com"])
+        assert result.exit_code == 0
+
 
 class TestExportCommand:
     """Tests for export command."""
@@ -234,3 +244,19 @@ class TestExportCommand:
             ])
             assert result.exit_code == 0
             assert output_file.exists()
+
+
+class TestInteractiveCommand:
+    """Tests for interactive command."""
+
+    def test_interactive_help(self, runner):
+        """Test interactive --help."""
+        result = runner.invoke(main, ["interactive", "--help"])
+        assert result.exit_code == 0
+        assert "interactive mode" in result.output.lower()
+
+    def test_interactive_flag_help(self, runner):
+        """Test main --interactive flag in help."""
+        result = runner.invoke(main, ["--help"])
+        assert result.exit_code == 0
+        assert "--interactive" in result.output or "-i" in result.output

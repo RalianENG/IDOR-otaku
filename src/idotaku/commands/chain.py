@@ -6,9 +6,10 @@ import click
 from rich.console import Console
 from rich.tree import Tree
 
+from ..config import IdotakuConfig
 from ..report import load_report, build_param_flow_mappings, build_flow_graph
 from ..export import export_chain_html
-from ..utils import normalize_api_path
+from ..utils import normalize_api_path, extract_domain
 
 console = Console()
 
@@ -36,18 +37,51 @@ def format_param(params):
     return f"[cyan]{escape_rich(short)}[/cyan]"
 
 
+def _parse_domain_filter(domains_str: str | None) -> list[str]:
+    """Parse comma-separated domain patterns."""
+    if not domains_str:
+        return []
+    return [d.strip() for d in domains_str.split(",") if d.strip()]
+
+
+def _filter_flows_by_domain(flows: list[dict], domain_patterns: list[str]) -> list[dict]:
+    """Filter flows to only include those matching domain patterns."""
+    if not domain_patterns:
+        return flows
+
+    filtered = []
+    for flow in flows:
+        url = flow.get("url", "")
+        domain = extract_domain(url)
+        if not domain:
+            continue
+
+        for pattern in domain_patterns:
+            if IdotakuConfig.match_domain(domain, pattern):
+                filtered.append(flow)
+                break
+
+    return filtered
+
+
 @click.command()
 @click.argument("report_file", default="id_tracker_report.json", type=click.Path(exists=True))
 @click.option("--top", "-n", default=10, help="Number of top root chains to show")
 @click.option("--min-depth", "-m", default=2, help="Minimum tree depth")
 @click.option("--html", "-o", "html_output", default=None, help="Export to interactive HTML file")
-def chain(report_file, top, min_depth, html_output):
+@click.option("--domains", "-d", default=None, help="Filter by domains (comma-separated, supports wildcards like *.example.com)")
+def chain(report_file, top, min_depth, html_output, domains):
     """Detect and rank parameter chains as trees (main business flows).
 
     Finds parameter flow trees where:
     API-A produces params → multiple APIs use them → they produce more params → ...
 
     Shows branching structure when one API's params feed multiple downstream APIs.
+
+    Use --domains to filter by specific domains:
+
+    \b
+      idotaku chain report.json --domains "api.example.com,*.internal.com"
     """
     data = load_report(report_file)
 
@@ -55,7 +89,19 @@ def chain(report_file, top, min_depth, html_output):
         console.print("[yellow]No flows found in report.[/yellow]")
         return
 
-    sorted_flows = data.sorted_flows
+    # Parse domain filter
+    domain_patterns = _parse_domain_filter(domains)
+
+    # Apply domain filter if specified
+    if domain_patterns:
+        sorted_flows = _filter_flows_by_domain(data.sorted_flows, domain_patterns)
+        if not sorted_flows:
+            console.print("[yellow]No flows found matching domain filter.[/yellow]")
+            console.print(f"[dim]Filter: {domains}[/dim]")
+            return
+        console.print(f"[dim]Filtering by domains: {domains} ({len(sorted_flows)}/{len(data.sorted_flows)} flows)[/dim]")
+    else:
+        sorted_flows = data.sorted_flows
 
     # Build mappings using shared analysis functions
     param_origins, param_usages, flow_produces = build_param_flow_mappings(sorted_flows)

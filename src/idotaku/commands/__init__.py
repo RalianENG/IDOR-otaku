@@ -11,6 +11,7 @@ from .graph import graph
 from .chain import chain
 from .export import export
 from .version import version
+from .interactive_cmd import interactive
 
 __all__ = [
     "run_proxy",
@@ -24,4 +25,5 @@ __all__ = [
     "chain",
     "export",
     "version",
+    "interactive",
 ]

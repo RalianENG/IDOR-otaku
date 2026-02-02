@@ -27,6 +27,7 @@ class TestGetFlowDetails:
 
         assert details["method"] == "POST"
         assert details["url"] == "https://api.example.com/users"
+        assert details["domain"] == "api.example.com"
         assert details["path"] == "/users"
         assert details["timestamp"] == "2024-01-01T10:00:00Z"
         assert len(details["request_ids"]) == 1
@@ -39,6 +40,7 @@ class TestGetFlowDetails:
 
         assert details["method"] == "?"
         assert details["url"] == "?"
+        assert details["domain"] == ""
         assert details["path"] == "/"
         assert details["request_ids"] == []
         assert details["response_ids"] == []

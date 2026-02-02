@@ -5,17 +5,19 @@ from pathlib import Path
 from typing import Union
 from urllib.parse import urlparse
 
-from ..utils.url import normalize_api_path
+from ..utils.url import normalize_api_path, extract_domain
 from .html_styles import CHAIN_STYLES
 from .html_scripts import CHAIN_SCRIPTS
 
 
 def _get_flow_details(flow: dict) -> dict:
     """Get detailed info for a flow."""
+    url = flow.get("url", "")
     return {
         "method": flow.get("method", "?"),
-        "url": flow.get("url", "?"),
-        "path": urlparse(flow.get("url", "")).path or "/",
+        "url": url if url else "?",
+        "domain": extract_domain(url) or "",
+        "path": urlparse(url).path or "/",
         "timestamp": flow.get("timestamp", ""),
         "request_ids": flow.get("request_ids", []),
         "response_ids": flow.get("response_ids", []),
@@ -121,6 +123,7 @@ def _build_tree_json(
         "api_key": api_key,
         "method": details["method"],
         "url": details["url"],
+        "domain": details["domain"],
         "path": details["path"],
         "timestamp": details["timestamp"],
         "request_ids": details["request_ids"],

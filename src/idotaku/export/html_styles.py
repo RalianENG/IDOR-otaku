@@ -27,39 +27,41 @@ body {
 
 /* Tree Styles */
 .tree-root {
-    margin-bottom: 30px;
+    margin-bottom: 40px;
 }
 .tree-header {
     background: #161b22;
-    padding: 12px 16px;
+    padding: 14px 18px;
     border-radius: 8px;
-    margin-bottom: 8px;
+    margin-bottom: 12px;
     border-left: 4px solid #58a6ff;
 }
 .tree-header .rank {
     color: #f0883e;
     font-weight: bold;
-    margin-right: 10px;
+    font-size: 1.1em;
+    margin-right: 12px;
 }
 .tree-header .stats {
     color: #8b949e;
     font-size: 0.85em;
-    margin-left: 10px;
+    margin-left: 12px;
 }
 
 .tree-node {
-    margin-left: 24px;
+    margin-left: 28px;
     border-left: 2px solid #30363d;
-    padding-left: 16px;
+    padding-left: 20px;
 }
 .node-item {
-    padding: 8px 12px;
-    margin: 4px 0;
+    padding: 10px 14px;
+    margin: 6px 0;
     background: #161b22;
     border-radius: 6px;
     cursor: pointer;
     transition: all 0.15s;
     position: relative;
+    line-height: 1.5;
 }
 .node-item:hover {
     background: #1f2937;
@@ -113,16 +115,24 @@ body {
 .method.PATCH { background: #3fb950; color: #fff; }
 
 .path { color: #c9d1d9; font-size: 0.9em; }
+.domain {
+    color: #8b949e;
+    font-size: 0.8em;
+    margin-left: 8px;
+    padding: 2px 6px;
+    background: #21262d;
+    border-radius: 4px;
+}
 .param-arrow {
     color: #f0883e;
-    margin: 0 6px;
+    margin: 0 8px;
 }
 .param-value {
     color: #79c0ff;
     font-family: monospace;
     font-size: 0.85em;
     background: #1f2937;
-    padding: 2px 6px;
+    padding: 3px 8px;
     border-radius: 4px;
 }
 
