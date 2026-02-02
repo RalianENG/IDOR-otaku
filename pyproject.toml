@@ -9,6 +9,9 @@ description = "API ID tracking tool for security testing - tracks ID generation 
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.10"
+authors = [
+    {name = "RalianENG", email = "ralianengineering@gmail.com"},
+]
 keywords = ["security", "api", "testing", "mitmproxy", "idor"]
 classifiers = [
     "Development Status :: 3 - Alpha",
@@ -42,8 +45,9 @@ dev = [
 idotaku = "idotaku.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/yourname/idotaku"
-Repository = "https://github.com/yourname/idotaku"
+Homepage = "https://github.com/RalianENG/idotaku"
+Repository = "https://github.com/RalianENG/idotaku"
+Issues = "https://github.com/RalianENG/idotaku/issues"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/idotaku"]
