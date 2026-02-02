@@ -81,7 +81,7 @@ class TestTruncateText:
     def test_long_text(self):
         """Test that long text is truncated with suffix."""
         assert truncate_text("hello world", 8) == "hello..."
-        assert truncate_text("hello world", 8, "..") == "hello w.."
+        assert truncate_text("hello world", 8, "..") == "hello .."
 
     def test_exact_length(self):
         """Test text at exact max length."""
