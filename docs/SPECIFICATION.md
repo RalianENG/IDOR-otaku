@@ -1,4 +1,4 @@
-# idotaku 仕様書
+# IDOR-otaku (idotaku) 仕様書
 
 ## 概要
 
@@ -314,6 +314,7 @@ idotaku [OPTIONS]
 | `--no-browser` | | false | ブラウザ自動起動を無効化 |
 | `--browser` | | auto | 使用ブラウザ (chrome/edge/firefox/auto) |
 | `--config` | `-c` | なし | 設定ファイルパス |
+| `--interactive` | `-i` | false | 対話モードで起動 |
 
 ### report - サマリー表示
 
@@ -359,6 +360,16 @@ idotaku chain [REPORT_FILE] [OPTIONS]
 | `--top N` | 表示するチェーン数（デフォルト: 10） |
 | `--min-depth N` | 最小深さ（デフォルト: 2） |
 | `--html FILE` | インタラクティブHTMLとしてエクスポート |
+| `--domains PATTERNS` | ドメインでフィルタ（カンマ区切り、ワイルドカード対応） |
+
+**ドメインフィルタ例**:
+```bash
+# 特定ドメインのみ
+idotaku chain --domains "api.example.com"
+
+# 複数ドメイン（ワイルドカード対応）
+idotaku chain --domains "api.example.com,*.internal.com"
+```
 
 **チェーン検出のアルゴリズム**:
 1. Flow間の依存関係をグラフ化（レスポンスのID → リクエストで使用）
@@ -419,6 +430,24 @@ idotaku export [REPORT_FILE] [OPTIONS]
 idotaku version
 ```
 
+### interactive - 対話モード
+
+```bash
+idotaku interactive
+# または
+idotaku -i
+```
+
+**機能**:
+- 矢印キーでコマンド選択
+- レポートファイルの自動検出・選択
+- ドメインフィルタのチェックボックス選択
+- Enterでスキップ可能（デフォルト値使用）
+
+**対象ユーザー**:
+- 初心者: ガイド付きでコマンドを学べる
+- シニア: Enterで素早くスキップ可能
+
 ---
 
 ## 依存関係
@@ -428,7 +457,7 @@ idotaku version
 | mitmproxy | >=10.0.0 | プロキシエンジン |
 | click | >=8.0.0 | CLIフレームワーク |
 | rich | >=13.0.0 | ターミナル出力装飾 |
-| pyyaml | >=6.0.0 | 設定ファイル読み込み |
+| questionary | >=2.0.0 | 対話式プロンプト |
 
 ---
 
@@ -453,6 +482,8 @@ idotaku version
 - [x] シーケンス表示
 - [x] IDライフライン表示
 - [x] API遷移可視化
+- [x] 対話式CLI（インタラクティブモード）
+- [x] chainコマンドのドメインフィルタオプション
 
 ### 未実装
 

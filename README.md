@@ -10,6 +10,16 @@ pip install idotaku
 
 ## Usage
 
+### Interactive Mode (Recommended for beginners)
+
+```bash
+idotaku -i
+# or
+idotaku interactive
+```
+
+Menu-driven interface with arrow key navigation.
+
 ### Start tracking proxy
 
 ```bash
@@ -33,6 +43,9 @@ idotaku trace id_tracker_report.json
 # Detect parameter chains
 idotaku chain id_tracker_report.json
 
+# Filter by domain
+idotaku chain id_tracker_report.json --domains "api.example.com"
+
 # Export to HTML
 idotaku export id_tracker_report.json -o report.html
 ```
@@ -41,6 +54,7 @@ idotaku export id_tracker_report.json -o report.html
 
 | Command | Description |
 |---------|-------------|
+| `interactive` | Launch interactive mode with guided menus |
 | `report` | View ID tracking report summary |
 | `tree` | Visualize IDs as origin → usage tree |
 | `flow` | Show ID flow timeline |
@@ -48,7 +62,7 @@ idotaku export id_tracker_report.json -o report.html
 | `sequence` | Show API sequence with parameter flow |
 | `lifeline` | Show parameter lifespan |
 | `graph` | Show API dependency graph |
-| `chain` | Detect parameter chains |
+| `chain` | Detect parameter chains (supports `--domains` filter) |
 | `export` | Export to interactive HTML |
 
 ## Development

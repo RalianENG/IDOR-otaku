@@ -23,6 +23,7 @@ STYLE = Style([
 
 
 COMMANDS = [
+    {"value": "proxy", "name": "proxy   - Start tracking proxy (launch browser)"},
     {"value": "chain", "name": "chain   - Analyze parameter chains (main flows)"},
     {"value": "tree", "name": "tree    - View ID transition tree"},
     {"value": "trace", "name": "trace   - Trace specific ID usage"},
@@ -31,6 +32,9 @@ COMMANDS = [
     {"value": "graph", "name": "graph   - View API dependency graph"},
     {"value": "export", "name": "export  - Export to HTML"},
 ]
+
+# Analysis commands that require a report file
+ANALYSIS_COMMANDS = {"chain", "tree", "trace", "report", "flow", "graph", "export"}
 
 
 def prompt_command() -> str | None:
@@ -177,6 +181,50 @@ def prompt_continue() -> bool:
     ).ask() or False
 
 
+def prompt_proxy_settings() -> dict | None:
+    """Prompt user for proxy settings."""
+    # Browser selection
+    browser = questionary.select(
+        "Select browser:",
+        choices=[
+            {"value": "auto", "name": "auto   - Detect automatically"},
+            {"value": "chrome", "name": "chrome - Google Chrome"},
+            {"value": "edge", "name": "edge   - Microsoft Edge"},
+            {"value": "firefox", "name": "firefox - Mozilla Firefox"},
+        ],
+        style=STYLE,
+    ).ask()
+
+    if browser is None:
+        return None
+
+    # Port (with default)
+    port = questionary.text(
+        "Proxy port:",
+        default="8080",
+        style=STYLE,
+    ).ask()
+
+    if port is None:
+        return None
+
+    # Output file
+    output = questionary.text(
+        "Output file:",
+        default="id_tracker_report.json",
+        style=STYLE,
+    ).ask()
+
+    if output is None:
+        return None
+
+    return {
+        "browser": browser,
+        "port": int(port) if port.isdigit() else 8080,
+        "output": output,
+    }
+
+
 def run_interactive_mode():
     """Run the interactive CLI mode."""
     from rich.console import Console
@@ -195,67 +243,98 @@ def run_interactive_mode():
             console.print("\n[dim]Cancelled.[/dim]")
             break
 
-        # Select report file
-        report_file = prompt_report_file()
-        if report_file is None:
-            console.print("\n[dim]Cancelled.[/dim]")
-            break
-
-        # Load report to get domain info
-        try:
-            data = load_report(report_file)
-        except Exception as e:
-            console.print(f"[red]Error loading report: {e}[/red]")
-            continue
-
-        if not data.flows:
-            console.print("[yellow]No flows found in report.[/yellow]")
-            continue
-
-        # Build command arguments
-        args = [command, report_file]
-
-        # Domain filter for relevant commands
-        if command in ("chain", "tree", "flow", "graph"):
-            domains = prompt_domains(data.flows)
-            if domains is None:
+        # Handle proxy command (start tracking)
+        if command == "proxy":
+            settings = prompt_proxy_settings()
+            if settings is None:
                 console.print("\n[dim]Cancelled.[/dim]")
                 break
-            if domains:
-                args.extend(["--domains", ",".join(domains)])
 
-        # ID input for trace command
-        if command == "trace":
-            id_value = prompt_id_value()
-            if id_value is None:
+            console.print()
+            console.print(f"[dim]Starting proxy on port {settings['port']}...[/dim]")
+            console.print(f"[dim]Output: {settings['output']}[/dim]")
+            console.print(f"[dim]Browser: {settings['browser']}[/dim]")
+            console.print()
+            console.print("[yellow]Press Ctrl+C to stop and save report.[/yellow]")
+            console.print()
+
+            # Run proxy directly (not via CliRunner since it needs real TTY)
+            from .commands import run_proxy
+            run_proxy(
+                port=settings["port"],
+                web_port=8081,
+                output=settings["output"],
+                min_numeric=100,
+                config=None,
+                no_browser=False,
+                browser=settings["browser"],
+            )
+            # After proxy stops, don't continue loop
+            break
+
+        # Analysis commands require report file
+        if command in ANALYSIS_COMMANDS:
+            # Select report file
+            report_file = prompt_report_file()
+            if report_file is None:
                 console.print("\n[dim]Cancelled.[/dim]")
                 break
-            args.extend(["--id", id_value])
 
-        # HTML output for chain/export
-        if command in ("chain", "export"):
-            html_output = prompt_html_output()
-            if html_output:
-                if command == "chain":
-                    args.extend(["--html", html_output])
-                else:
-                    args.extend(["--output", html_output])
+            # Load report to get domain info
+            try:
+                data = load_report(report_file)
+            except Exception as e:
+                console.print(f"[red]Error loading report: {e}[/red]")
+                continue
 
-        # Execute command
-        console.print()
-        console.print(f"[dim]Running: idotaku {' '.join(args[1:])}[/dim]")
-        console.print()
+            if not data.flows:
+                console.print("[yellow]No flows found in report.[/yellow]")
+                continue
 
-        from .cli import main
-        from click.testing import CliRunner
+            # Build command arguments
+            args = [command, report_file]
 
-        runner = CliRunner()
-        result = runner.invoke(main, args, catch_exceptions=False)
-        console.print(result.output)
+            # Domain filter for relevant commands
+            if command in ("chain", "tree", "flow", "graph"):
+                domains = prompt_domains(data.flows)
+                if domains is None:
+                    console.print("\n[dim]Cancelled.[/dim]")
+                    break
+                if domains:
+                    args.extend(["--domains", ",".join(domains)])
 
-        # Continue?
-        console.print()
-        if not prompt_continue():
-            break
+            # ID input for trace command
+            if command == "trace":
+                id_value = prompt_id_value()
+                if id_value is None:
+                    console.print("\n[dim]Cancelled.[/dim]")
+                    break
+                args.extend(["--id", id_value])
+
+            # HTML output for chain/export
+            if command in ("chain", "export"):
+                html_output = prompt_html_output()
+                if html_output:
+                    if command == "chain":
+                        args.extend(["--html", html_output])
+                    else:
+                        args.extend(["--output", html_output])
+
+            # Execute command
+            console.print()
+            console.print(f"[dim]Running: idotaku {' '.join(args[1:])}[/dim]")
+            console.print()
+
+            from .cli import main
+            from click.testing import CliRunner
+
+            runner = CliRunner()
+            result = runner.invoke(main, args, catch_exceptions=False)
+            console.print(result.output)
+
+            # Continue?
+            console.print()
+            if not prompt_continue():
+                break
 
     console.print("\n[dim]Goodbye![/dim]")

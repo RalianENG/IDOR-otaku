@@ -24,7 +24,16 @@ pip install -e .
 
 ## 基本的な使い方
 
-### 1. 起動
+### 1. 起動（対話モード - 初心者向け）
+
+```bash
+idotaku -i
+```
+
+矢印キーでコマンドを選択できるインタラクティブモードが起動します。
+ファイル選択やドメインフィルタも対話形式で設定可能。
+
+### 1. 起動（プロキシモード）
 
 ```bash
 idotaku
@@ -56,6 +65,9 @@ idotaku tree
 # パラメータチェーン検出（ビジネスフロー発見）
 idotaku chain
 
+# 特定ドメインのみ分析（ノイズ除去）
+idotaku chain --domains "api.example.com,*.internal.com"
+
 # HTMLでインタラクティブに可視化
 idotaku chain --html chain_report.html
 ```
@@ -66,6 +78,7 @@ idotaku chain --html chain_report.html
 
 | コマンド | 説明 |
 |----------|------|
+| `idotaku -i` | 対話モード（メニュー選択式） |
 | `idotaku` | プロキシ起動 |
 | `idotaku report` | レポートサマリー表示 |
 | `idotaku tree` | ID別ツリー形式で可視化 |
@@ -74,7 +87,7 @@ idotaku chain --html chain_report.html
 | `idotaku chain` | パラメータチェーン検出・ランキング |
 | `idotaku export` | HTMLレポート出力 |
 
-その他: `sequence`, `lifeline`, `graph` - 詳細は [SPECIFICATION.md](./SPECIFICATION.md) 参照
+その他: `sequence`, `lifeline`, `graph`, `interactive` - 詳細は [SPECIFICATION.md](./SPECIFICATION.md) 参照
 
 ---
 
@@ -175,6 +188,9 @@ user_123 [token]
 ## よく使うオプション
 
 ```bash
+# 対話モード（おすすめ）
+idotaku -i
+
 # ポート変更
 idotaku --port 9090
 
@@ -193,6 +209,9 @@ idotaku -c idotaku.yaml
 
 # IDOR候補のみ表示
 idotaku tree --idor-only
+
+# チェーン分析（ドメインフィルタ）
+idotaku chain --domains "api.example.com"
 
 # チェーンをHTMLで出力
 idotaku chain --html report.html
