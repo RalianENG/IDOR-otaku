@@ -40,6 +40,23 @@ class TestLoadReport:
         with pytest.raises(SystemExit):
             load_report(tmp_path / "nonexistent.json")
 
+    def test_load_invalid_json(self, tmp_path):
+        """Test loading a file with invalid JSON exits with error."""
+        bad_file = tmp_path / "bad.json"
+        bad_file.write_text("not valid json{{{")
+        with pytest.raises(SystemExit):
+            load_report(bad_file)
+
+    def test_load_partial_report(self, tmp_path):
+        """Test loading a JSON file missing some keys uses defaults."""
+        partial = tmp_path / "partial.json"
+        partial.write_text('{"summary": {"total_unique_ids": 3}}')
+        data = load_report(partial)
+        assert data.summary.total_unique_ids == 3
+        assert data.summary.total_flows == 0  # default
+        assert data.flows == []  # default
+        assert data.tracked_ids == {}  # default
+
     def test_sorted_flows(self, sample_report_file):
         """Test that sorted_flows returns flows in timestamp order."""
         data = load_report(sample_report_file)

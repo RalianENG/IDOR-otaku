@@ -1,5 +1,7 @@
 """Tests for CLI commands."""
 
+import json
+
 import pytest
 from click.testing import CliRunner
 
@@ -138,3 +140,212 @@ class TestInteractiveCommand:
         result = runner.invoke(main, ["--help"])
         assert result.exit_code == 0
         assert "--interactive" in result.output or "-i" in result.output
+
+
+class TestDiffCommand:
+    """Tests for diff command."""
+
+    def test_diff_help(self, runner):
+        result = runner.invoke(main, ["diff", "--help"])
+        assert result.exit_code == 0
+        assert "Compare two reports" in result.output
+
+    def test_diff_identical_reports(self, runner, sample_report_file):
+        result = runner.invoke(main, ["diff", str(sample_report_file), str(sample_report_file)])
+        assert result.exit_code == 0
+        assert "No changes" in result.output
+
+    def test_diff_with_changes(self, runner, sample_report_data, tmp_path):
+        file_a = tmp_path / "a.json"
+        file_b = tmp_path / "b.json"
+
+        with open(file_a, "w") as f:
+            json.dump(sample_report_data, f)
+
+        # Modify report B: add a new IDOR finding
+        data_b = {**sample_report_data}
+        data_b["potential_idor"] = sample_report_data["potential_idor"] + [{
+            "id_value": "new_id_777",
+            "id_type": "numeric",
+            "reason": "test",
+            "usages": [{"method": "GET", "url": "https://x.com/777", "location": "path"}],
+        }]
+        with open(file_b, "w") as f:
+            json.dump(data_b, f)
+
+        result = runner.invoke(main, ["diff", str(file_a), str(file_b)])
+        assert result.exit_code == 0
+        assert "New IDOR" in result.output
+
+    def test_diff_json_export(self, runner, sample_report_file, tmp_path):
+        output = tmp_path / "diff.json"
+        result = runner.invoke(main, [
+            "diff", str(sample_report_file), str(sample_report_file),
+            "--json-output", str(output),
+        ])
+        assert result.exit_code == 0
+
+
+class TestAuthCommand:
+    """Tests for auth command."""
+
+    def test_auth_help(self, runner):
+        result = runner.invoke(main, ["auth", "--help"])
+        assert result.exit_code == 0
+
+    def test_auth_no_auth_context(self, runner, sample_report_file):
+        result = runner.invoke(main, ["auth", str(sample_report_file)])
+        assert result.exit_code == 0
+        assert "No authentication context" in result.output
+
+    def test_auth_with_auth_context(self, runner, tmp_path):
+        data = {
+            "summary": {"total_unique_ids": 1, "ids_with_origin": 0, "ids_with_usage": 1, "total_flows": 2},
+            "tracked_ids": {},
+            "flows": [
+                {
+                    "method": "GET", "url": "https://api.example.com/users/123",
+                    "timestamp": "t1",
+                    "request_ids": [{"value": "123", "type": "numeric", "location": "path"}],
+                    "response_ids": [],
+                    "auth_context": {"auth_type": "Bearer", "token_hash": "aaa11111"},
+                },
+                {
+                    "method": "GET", "url": "https://api.example.com/users/123",
+                    "timestamp": "t2",
+                    "request_ids": [{"value": "123", "type": "numeric", "location": "path"}],
+                    "response_ids": [],
+                    "auth_context": {"auth_type": "Bearer", "token_hash": "bbb22222"},
+                },
+            ],
+            "potential_idor": [],
+        }
+        report_file = tmp_path / "auth_report.json"
+        with open(report_file, "w") as f:
+            json.dump(data, f)
+
+        result = runner.invoke(main, ["auth", str(report_file)])
+        assert result.exit_code == 0
+        assert "Cross-User Access" in result.output
+
+    def test_auth_empty_report(self, runner, empty_report_file):
+        result = runner.invoke(main, ["auth", str(empty_report_file)])
+        assert result.exit_code == 0
+        assert "No flows found" in result.output
+
+
+class TestScoreCommand:
+    """Tests for score command."""
+
+    def test_score_help(self, runner):
+        result = runner.invoke(main, ["score", "--help"])
+        assert result.exit_code == 0
+
+    def test_score_with_findings(self, runner, sample_report_file):
+        result = runner.invoke(main, ["score", str(sample_report_file)])
+        assert result.exit_code == 0
+        assert "Risk Scores" in result.output
+
+    def test_score_no_findings(self, runner, empty_report_file):
+        result = runner.invoke(main, ["score", str(empty_report_file)])
+        assert result.exit_code == 0
+        assert "No IDOR candidates" in result.output
+
+    def test_score_min_score_filter(self, runner, sample_report_file):
+        result = runner.invoke(main, ["score", str(sample_report_file), "--min-score", "99"])
+        assert result.exit_code == 0
+
+    def test_score_level_filter(self, runner, sample_report_file):
+        result = runner.invoke(main, ["score", str(sample_report_file), "--level", "critical"])
+        assert result.exit_code == 0
+
+
+class TestCsvCommand:
+    """Tests for csv command."""
+
+    def test_csv_help(self, runner):
+        result = runner.invoke(main, ["csv", "--help"])
+        assert result.exit_code == 0
+
+    def test_csv_idor_mode(self, runner, sample_report_file, tmp_path):
+        output = tmp_path / "idor.csv"
+        result = runner.invoke(main, ["csv", str(sample_report_file), "-o", str(output)])
+        assert result.exit_code == 0
+        assert output.exists()
+        assert "CSV exported" in result.output
+
+    def test_csv_flows_mode(self, runner, sample_report_file, tmp_path):
+        output = tmp_path / "flows.csv"
+        result = runner.invoke(main, ["csv", str(sample_report_file), "-o", str(output), "-m", "flows"])
+        assert result.exit_code == 0
+        assert output.exists()
+
+
+class TestSarifCommand:
+    """Tests for sarif command."""
+
+    def test_sarif_help(self, runner):
+        result = runner.invoke(main, ["sarif", "--help"])
+        assert result.exit_code == 0
+
+    def test_sarif_export(self, runner, sample_report_file, tmp_path):
+        output = tmp_path / "output.sarif.json"
+        result = runner.invoke(main, ["sarif", str(sample_report_file), "-o", str(output)])
+        assert result.exit_code == 0
+        assert output.exists()
+        assert "SARIF exported" in result.output
+
+        with open(output) as f:
+            sarif = json.load(f)
+        assert sarif["version"] == "2.1.0"
+
+    def test_sarif_empty_report(self, runner, empty_report_file, tmp_path):
+        output = tmp_path / "empty.sarif.json"
+        result = runner.invoke(main, ["sarif", str(empty_report_file), "-o", str(output)])
+        assert result.exit_code == 0
+
+
+class TestHarImportCommand:
+    """Tests for import-har command."""
+
+    def test_har_help(self, runner):
+        result = runner.invoke(main, ["import-har", "--help"])
+        assert result.exit_code == 0
+
+    def test_har_import(self, runner, tmp_path):
+        har_data = {
+            "log": {
+                "version": "1.2",
+                "entries": [{
+                    "startedDateTime": "2024-01-01T10:00:00.000Z",
+                    "request": {
+                        "method": "GET",
+                        "url": "https://api.example.com/users/12345",
+                        "headers": [],
+                    },
+                    "response": {
+                        "status": 200,
+                        "headers": [],
+                        "content": {"mimeType": "application/json", "text": '{"id": 12345}'},
+                    },
+                }],
+            },
+        }
+        har_file = tmp_path / "test.har"
+        with open(har_file, "w") as f:
+            json.dump(har_data, f)
+
+        output = tmp_path / "report.json"
+        result = runner.invoke(main, ["import-har", str(har_file), "-o", str(output)])
+        assert result.exit_code == 0
+        assert "Report generated" in result.output
+        assert output.exists()
+
+    def test_har_import_invalid_json(self, runner, tmp_path):
+        har_file = tmp_path / "bad.har"
+        with open(har_file, "w") as f:
+            f.write("not json")
+
+        result = runner.invoke(main, ["import-har", str(har_file)])
+        assert result.exit_code == 0  # Handled gracefully
+        assert "Error" in result.output
