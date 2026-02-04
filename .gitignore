@@ -1,7 +1,38 @@
-/src/idotaku/__pycache__
-/src/idotaku/commands/__pycache__
-/src/idotaku/export/__pycache__
-/src/idotaku/report/__pycache__
-/src/idotaku/utils/__pycache__
-/src/idotaku/visualization/__pycache__
-/tests/__pycache__
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+*.egg
+dist/
+build/
+
+# Virtual environments
+.venv/
+venv/
+
+# Testing
+.coverage
+.pytest_cache/
+htmlcov/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment variables
+.env
+.env.*
+
+# Windows NUL device artifact
+nul
+
+# idotaku output
+id_tracker_report.json
+*.html
+!docs/**/*.html

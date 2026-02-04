@@ -5,14 +5,24 @@ build-backend = "hatchling.build"
 [project]
 name = "idotaku"
 version = "0.1.0"
-description = "API ID tracking tool for security testing - tracks ID generation and usage patterns"
+description = "mitmproxy-based IDOR detection tool - intercepts traffic and analyzes parameter relationships to find insecure direct object references"
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.10"
 authors = [
     {name = "RalianENG", email = "ralianengineering@gmail.com"},
 ]
-keywords = ["security", "api", "testing", "mitmproxy", "idor"]
+keywords = [
+    "idor",
+    "security",
+    "mitmproxy",
+    "proxy",
+    "pentest",
+    "bug-bounty",
+    "api-security",
+    "parameter-analysis",
+    "web-security",
+]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Environment :: Console",
@@ -25,7 +35,9 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Topic :: Internet :: Proxy Servers",
     "Topic :: Security",
+    "Topic :: Software Development :: Testing",
 ]
 dependencies = [
     "mitmproxy>=10.0.0",
@@ -45,9 +57,9 @@ dev = [
 idotaku = "idotaku.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/RalianENG/idotaku"
-Repository = "https://github.com/RalianENG/idotaku"
-Issues = "https://github.com/RalianENG/idotaku/issues"
+Homepage = "https://github.com/RalianENG/IDOR-otaku"
+Repository = "https://github.com/RalianENG/IDOR-otaku"
+Issues = "https://github.com/RalianENG/IDOR-otaku/issues"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/idotaku"]
