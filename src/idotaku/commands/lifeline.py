@@ -40,7 +40,9 @@ def lifeline(report_file, min_uses, sort):
         path = urlparse(url).path or "/"
 
         for res_id in flow.get("response_ids", []):
-            val = res_id["value"]
+            val = res_id.get("value", "")
+            if not val:
+                continue
             if val not in param_lifecycle:
                 param_lifecycle[val] = {
                     "first_idx": i,
@@ -59,7 +61,9 @@ def lifeline(report_file, min_uses, sort):
             param_lifecycle[val]["last_idx"] = i
 
         for req_id in flow.get("request_ids", []):
-            val = req_id["value"]
+            val = req_id.get("value", "")
+            if not val:
+                continue
             if val not in param_lifecycle:
                 param_lifecycle[val] = {
                     "first_idx": i,

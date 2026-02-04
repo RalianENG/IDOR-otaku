@@ -294,10 +294,12 @@ def _build_tracked_ids(flows: list[dict]) -> dict:
 
         # Response IDs -> origin
         for id_info in flow.get("response_ids", []):
-            value = id_info["value"]
+            value = id_info.get("value", "")
+            if not value:
+                continue
             if value not in tracked:
                 tracked[value] = {
-                    "type": id_info["type"],
+                    "type": id_info.get("type", "unknown"),
                     "first_seen": timestamp,
                     "origin": None,
                     "usage_count": 0,
@@ -307,17 +309,19 @@ def _build_tracked_ids(flows: list[dict]) -> dict:
                 tracked[value]["origin"] = {
                     "url": url,
                     "method": method,
-                    "location": id_info["location"],
+                    "location": id_info.get("location", "?"),
                     "field_name": id_info.get("field"),
                     "timestamp": timestamp,
                 }
 
         # Request IDs -> usages
         for id_info in flow.get("request_ids", []):
-            value = id_info["value"]
+            value = id_info.get("value", "")
+            if not value:
+                continue
             if value not in tracked:
                 tracked[value] = {
-                    "type": id_info["type"],
+                    "type": id_info.get("type", "unknown"),
                     "first_seen": timestamp,
                     "origin": None,
                     "usage_count": 0,
@@ -326,7 +330,7 @@ def _build_tracked_ids(flows: list[dict]) -> dict:
             usage = {
                 "url": url,
                 "method": method,
-                "location": id_info["location"],
+                "location": id_info.get("location", "?"),
                 "field_name": id_info.get("field"),
                 "timestamp": timestamp,
             }
@@ -371,8 +375,13 @@ def import_har(
     exclude_patterns = config.get_compiled_exclude_patterns()
     ignore_headers = config.get_all_ignore_headers()
 
-    with open(har_path, "r", encoding="utf-8") as f:
-        har_data = json.load(f)
+    try:
+        with open(har_path, "r", encoding="utf-8") as f:
+            har_data = json.load(f)
+    except json.JSONDecodeError as e:
+        raise ValueError(f"Invalid JSON in HAR file '{har_path}': {e}") from e
+    except OSError as e:
+        raise ValueError(f"Cannot read HAR file '{har_path}': {e}") from e
 
     entries = har_data.get("log", {}).get("entries", [])
 

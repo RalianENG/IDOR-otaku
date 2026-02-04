@@ -36,8 +36,8 @@ class TestLoadReport:
         assert len(data.flows) == 0
 
     def test_load_nonexistent_file(self, tmp_path):
-        """Test loading a non-existent file raises error."""
-        with pytest.raises(FileNotFoundError):
+        """Test loading a non-existent file exits with error."""
+        with pytest.raises(SystemExit):
             load_report(tmp_path / "nonexistent.json")
 
     def test_sorted_flows(self, sample_report_file):

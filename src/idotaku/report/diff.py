@@ -47,8 +47,8 @@ def diff_reports(report_a: ReportData, report_b: ReportData) -> DiffResult:
         DiffResult with all changes
     """
     # Compare IDOR findings by id_value
-    idor_a = {item["id_value"]: item for item in report_a.potential_idor}
-    idor_b = {item["id_value"]: item for item in report_b.potential_idor}
+    idor_a = {item.get("id_value", ""): item for item in report_a.potential_idor if item.get("id_value")}
+    idor_b = {item.get("id_value", ""): item for item in report_b.potential_idor if item.get("id_value")}
 
     new_idor = [idor_b[k] for k in idor_b if k not in idor_a]
     removed_idor = [idor_a[k] for k in idor_a if k not in idor_b]

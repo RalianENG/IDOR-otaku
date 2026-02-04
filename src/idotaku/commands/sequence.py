@@ -42,7 +42,9 @@ def sequence(report_file, limit, html_output):
     for i, flow in enumerate(sorted_flows):
         # Response params (created here)
         for res_id in flow.get("response_ids", []):
-            val = res_id["value"]
+            val = res_id.get("value", "")
+            if not val:
+                continue
             if val not in param_tracker:
                 param_tracker[val] = {
                     "first_seen": i,
@@ -55,7 +57,9 @@ def sequence(report_file, limit, html_output):
 
         # Request params (used here)
         for req_id in flow.get("request_ids", []):
-            val = req_id["value"]
+            val = req_id.get("value", "")
+            if not val:
+                continue
             if val not in param_tracker:
                 param_tracker[val] = {
                     "first_seen": i,
@@ -90,7 +94,7 @@ def sequence(report_file, limit, html_output):
         if req_ids:
             lines.append("[yellow]▼ IN[/yellow]")
             for rid in req_ids[:5]:
-                val = rid["value"]
+                val = rid.get("value", "?")
                 short_val = val[:12] + ".." if len(val) > 12 else val
                 field = rid.get("field") or rid.get("location", "?")
                 lines.append(f"  [cyan]{short_val}[/cyan]")
@@ -105,7 +109,7 @@ def sequence(report_file, limit, html_output):
                 lines.append("")
             lines.append("[green]▲ OUT[/green]")
             for rid in res_ids[:5]:
-                val = rid["value"]
+                val = rid.get("value", "?")
                 short_val = val[:12] + ".." if len(val) > 12 else val
                 field = rid.get("field") or rid.get("location", "?")
                 # Check if this param is used later
@@ -124,8 +128,8 @@ def sequence(report_file, limit, html_output):
         # Show arrow to next if there are shared params
         if i < len(sorted_flows) - 1:
             next_flow = sorted_flows[i + 1]
-            next_req_ids = {r["value"] for r in next_flow.get("request_ids", [])}
-            current_res_ids = {r["value"] for r in res_ids}
+            next_req_ids = {r.get("value", "") for r in next_flow.get("request_ids", [])}
+            current_res_ids = {r.get("value", "") for r in res_ids}
             shared = current_res_ids & next_req_ids
             if shared:
                 shared_display = ", ".join(list(shared)[:3])

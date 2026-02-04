@@ -37,7 +37,9 @@ def detect_cross_user_access(flows: list[dict]) -> list[CrossUserAccess]:
         token_hash = auth["token_hash"]
 
         for req_id in flow.get("request_ids", []):
-            id_value = req_id["value"]
+            id_value = req_id.get("value", "")
+            if not id_value:
+                continue
             url = flow.get("url", "")
             method = flow.get("method", "?")
             url_pattern = f"{method} {normalize_api_path(url)}"
@@ -74,8 +76,9 @@ def enrich_idor_with_auth(
     enriched = []
     for finding in potential_idor:
         finding = {**finding}
-        if finding["id_value"] in cross_user_map:
-            ca = cross_user_map[finding["id_value"]]
+        id_val = finding.get("id_value", "")
+        if id_val and id_val in cross_user_map:
+            ca = cross_user_map[id_val]
             finding["cross_user"] = True
             finding["auth_tokens"] = ca.auth_tokens
         enriched.append(finding)

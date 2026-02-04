@@ -24,8 +24,8 @@ def export_idor_csv(
         for finding in report_data.potential_idor:
             for usage in finding.get("usages", []):
                 writer.writerow({
-                    "id_value": finding["id_value"],
-                    "id_type": finding["id_type"],
+                    "id_value": finding.get("id_value", ""),
+                    "id_type": finding.get("id_type", ""),
                     "method": usage.get("method", ""),
                     "url": usage.get("url", ""),
                     "location": usage.get("location", ""),
@@ -61,8 +61,8 @@ def export_flows_csv(
                 "url": flow.get("url", ""),
                 "request_id_count": len(req_ids),
                 "response_id_count": len(res_ids),
-                "request_ids": "; ".join(i["value"] for i in req_ids),
-                "response_ids": "; ".join(i["value"] for i in res_ids),
+                "request_ids": "; ".join(i.get("value", "") for i in req_ids),
+                "response_ids": "; ".join(i.get("value", "") for i in res_ids),
             })
 
 

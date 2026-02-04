@@ -123,5 +123,5 @@ def score_all_findings(potential_idor: list[dict]) -> list[dict]:
         }
         scored.append(enriched)
 
-    scored.sort(key=lambda x: x["risk_score"], reverse=True)
+    scored.sort(key=lambda x: x.get("risk_score", 0), reverse=True)
     return scored

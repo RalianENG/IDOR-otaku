@@ -57,11 +57,11 @@ def score(report_file, min_score, level):
     for item in scored:
         color = LEVEL_COLORS.get(item["risk_level"], "white")
         table.add_row(
-            str(item["risk_score"]),
-            f"[{color}]{item['risk_level']}[/{color}]",
-            item["id_value"][:30],
-            item["id_type"],
-            ", ".join(item["risk_factors"][:3]),
+            str(item.get("risk_score", 0)),
+            f"[{color}]{item.get('risk_level', '?')}[/{color}]",
+            item.get("id_value", "?")[:30],
+            item.get("id_type", "?"),
+            ", ".join(item.get("risk_factors", [])[:3]),
         )
 
     console.print(table)

@@ -20,10 +20,14 @@ def har_import(har_file, output, config):
     Burp Suite. Produces the same JSON report format as the proxy tracker.
     """
     cfg = load_config(config)
-    report = import_har_to_file(har_file, output, cfg)
+    try:
+        report = import_har_to_file(har_file, output, cfg)
+    except ValueError as e:
+        console.print(f"[red]Error:[/red] {e}")
+        return
 
-    summary = report["summary"]
+    summary = report.get("summary", {})
     console.print(f"[green]Report generated:[/green] {output}")
-    console.print(f"  Flows: {summary['total_flows']}")
-    console.print(f"  Unique IDs: {summary['total_unique_ids']}")
-    console.print(f"  Potential IDOR: {len(report['potential_idor'])}")
+    console.print(f"  Flows: {summary.get('total_flows', 0)}")
+    console.print(f"  Unique IDs: {summary.get('total_unique_ids', 0)}")
+    console.print(f"  Potential IDOR: {len(report.get('potential_idor', []))}")

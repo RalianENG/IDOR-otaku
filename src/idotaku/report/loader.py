@@ -1,6 +1,7 @@
 """Report loading functionality."""
 
 import json
+import sys
 from pathlib import Path
 from typing import Union
 
@@ -15,15 +16,18 @@ def load_report(report_file: Union[str, Path]) -> ReportData:
 
     Returns:
         ReportData instance with parsed data
-
-    Raises:
-        FileNotFoundError: If the report file doesn't exist
-        json.JSONDecodeError: If the file is not valid JSON
     """
     report_path = Path(report_file)
 
-    with open(report_path, "r", encoding="utf-8") as f:
-        data = json.load(f)
+    try:
+        with open(report_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except json.JSONDecodeError as e:
+        print(f"Error: Invalid JSON in report file '{report_path}': {e}", file=sys.stderr)
+        sys.exit(1)
+    except OSError as e:
+        print(f"Error: Cannot read report file '{report_path}': {e}", file=sys.stderr)
+        sys.exit(1)
 
     # Parse summary
     summary_data = data.get("summary", {})

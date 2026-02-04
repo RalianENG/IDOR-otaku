@@ -46,14 +46,14 @@ def diff(report_a, report_b, json_output):
     if result.new_idor:
         console.print(f"[bold red]+ {len(result.new_idor)} New IDOR Candidate(s)[/bold red]")
         for item in result.new_idor:
-            console.print(f"  [red]+[/red] {item['id_value']} ({item['id_type']})")
+            console.print(f"  [red]+[/red] {item.get('id_value', '?')} ({item.get('id_type', '?')})")
         console.print()
 
     # Removed IDOR findings
     if result.removed_idor:
         console.print(f"[bold green]- {len(result.removed_idor)} Removed IDOR Candidate(s)[/bold green]")
         for item in result.removed_idor:
-            console.print(f"  [green]-[/green] {item['id_value']} ({item['id_type']})")
+            console.print(f"  [green]-[/green] {item.get('id_value', '?')} ({item.get('id_type', '?')})")
         console.print()
 
     # New/removed tracked IDs

@@ -49,7 +49,7 @@ def _build_sarif_result(finding: dict) -> dict:
         "level": "warning",
         "message": {
             "text": f"Potential IDOR: {finding.get('id_type', 'unknown')} ID "
-                    f"'{finding['id_value']}' - {finding.get('reason', '')}",
+                    f"'{finding.get('id_value', '?')}' - {finding.get('reason', '')}",
         },
         "locations": locations or [{
             "physicalLocation": {
@@ -57,7 +57,7 @@ def _build_sarif_result(finding: dict) -> dict:
             },
         }],
         "properties": {
-            "id_value": finding["id_value"],
+            "id_value": finding.get("id_value", ""),
             "id_type": finding.get("id_type", ""),
             "usage_count": len(usages),
         },
