@@ -10,6 +10,9 @@ idotaku:
 
   # ID detection patterns (name: regex)
   # These patterns are used to extract IDs from requests/responses
+  # NOTE: Avoid patterns with catastrophic backtracking (e.g. "(a+)+b")
+  #       as they are applied to every intercepted request/response body
+  #       and may cause the proxy to hang.
   patterns:
     uuid: "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
     numeric: "[1-9]\\d{2,10}"

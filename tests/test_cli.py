@@ -51,75 +51,6 @@ class TestReportCommand:
         assert result.exit_code != 0
 
 
-class TestTreeCommand:
-    """Tests for tree command."""
-
-    def test_tree_help(self, runner):
-        """Test tree --help."""
-        result = runner.invoke(main, ["tree", "--help"])
-        assert result.exit_code == 0
-        assert "Visualize IDs as a tree" in result.output
-
-    def test_tree_with_file(self, runner, sample_report_file):
-        """Test tree command with valid file."""
-        result = runner.invoke(main, ["tree", str(sample_report_file)])
-        assert result.exit_code == 0
-        assert "ID Flow Visualization" in result.output
-
-    def test_tree_idor_only(self, runner, sample_report_file):
-        """Test tree command with --idor-only flag."""
-        result = runner.invoke(main, ["tree", str(sample_report_file), "--idor-only"])
-        assert result.exit_code == 0
-
-    def test_tree_type_filter(self, runner, sample_report_file):
-        """Test tree command with --type filter."""
-        result = runner.invoke(main, ["tree", str(sample_report_file), "--type", "numeric"])
-        assert result.exit_code == 0
-
-    def test_tree_empty_report(self, runner, empty_report_file):
-        """Test tree command with empty report."""
-        result = runner.invoke(main, ["tree", str(empty_report_file)])
-        assert result.exit_code == 0
-        assert "No IDs found" in result.output
-
-
-class TestFlowCommand:
-    """Tests for flow command."""
-
-    def test_flow_help(self, runner):
-        """Test flow --help."""
-        result = runner.invoke(main, ["flow", "--help"])
-        assert result.exit_code == 0
-        assert "timeline" in result.output.lower()
-
-    def test_flow_with_file(self, runner, sample_report_file):
-        """Test flow command with valid file."""
-        result = runner.invoke(main, ["flow", str(sample_report_file)])
-        assert result.exit_code == 0
-        assert "ID Flow Timeline" in result.output
-
-
-class TestTraceCommand:
-    """Tests for trace command."""
-
-    def test_trace_help(self, runner):
-        """Test trace --help."""
-        result = runner.invoke(main, ["trace", "--help"])
-        assert result.exit_code == 0
-        assert "API call transitions" in result.output
-
-    def test_trace_with_file(self, runner, sample_report_file):
-        """Test trace command with valid file."""
-        result = runner.invoke(main, ["trace", str(sample_report_file)])
-        assert result.exit_code == 0
-        assert "API Call Trace" in result.output
-
-    def test_trace_compact(self, runner, sample_report_file):
-        """Test trace command with --compact flag."""
-        result = runner.invoke(main, ["trace", str(sample_report_file), "--compact"])
-        assert result.exit_code == 0
-
-
 class TestSequenceCommand:
     """Tests for sequence command."""
 
@@ -163,22 +94,6 @@ class TestLifelineCommand:
             assert result.exit_code == 0
 
 
-class TestGraphCommand:
-    """Tests for graph command."""
-
-    def test_graph_help(self, runner):
-        """Test graph --help."""
-        result = runner.invoke(main, ["graph", "--help"])
-        assert result.exit_code == 0
-        assert "dependency graph" in result.output.lower()
-
-    def test_graph_with_file(self, runner, sample_report_file):
-        """Test graph command with valid file."""
-        result = runner.invoke(main, ["graph", str(sample_report_file)])
-        assert result.exit_code == 0
-        assert "API Dependency Graph" in result.output
-
-
 class TestChainCommand:
     """Tests for chain command."""
 
@@ -207,43 +122,6 @@ class TestChainCommand:
         """Test chain command with wildcard domain filter."""
         result = runner.invoke(main, ["chain", str(sample_report_file), "--domains", "*.example.com"])
         assert result.exit_code == 0
-
-
-class TestExportCommand:
-    """Tests for export command."""
-
-    def test_export_help(self, runner):
-        """Test export --help."""
-        result = runner.invoke(main, ["export", "--help"])
-        assert result.exit_code == 0
-        assert "HTML" in result.output
-
-    def test_export_with_file(self, runner, sample_report_file, tmp_path):
-        """Test export command creates HTML file."""
-        output_file = tmp_path / "output.html"
-        result = runner.invoke(main, [
-            "export", str(sample_report_file),
-            "--output", str(output_file)
-        ])
-        assert result.exit_code == 0
-        assert output_file.exists()
-
-        # Check HTML content
-        content = output_file.read_text(encoding="utf-8")
-        assert "<!DOCTYPE html>" in content
-        assert "idotaku" in content
-
-    def test_export_sections(self, runner, sample_report_file, tmp_path):
-        """Test export command with different sections."""
-        for section in ["tree", "trace", "timeline", "all"]:
-            output_file = tmp_path / f"output_{section}.html"
-            result = runner.invoke(main, [
-                "export", str(sample_report_file),
-                "--output", str(output_file),
-                "--section", section
-            ])
-            assert result.exit_code == 0
-            assert output_file.exists()
 
 
 class TestInteractiveCommand:

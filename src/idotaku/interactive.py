@@ -23,18 +23,24 @@ STYLE = Style([
 
 
 COMMANDS = [
-    {"value": "proxy", "name": "proxy   - Start tracking proxy (launch browser)"},
-    {"value": "chain", "name": "chain   - Analyze parameter chains (main flows)"},
-    {"value": "tree", "name": "tree    - View ID transition tree"},
-    {"value": "trace", "name": "trace   - Trace specific ID usage"},
-    {"value": "report", "name": "report  - View summary report"},
-    {"value": "flow", "name": "flow    - View request flows"},
-    {"value": "graph", "name": "graph   - View API dependency graph"},
-    {"value": "export", "name": "export  - Export to HTML"},
+    {"value": "proxy", "name": "proxy       - Start tracking proxy (launch browser)"},
+    {"value": "import-har", "name": "import-har  - Import HAR file to generate report"},
+    {"value": "chain", "name": "chain       - Analyze parameter chains (main flows)"},
+    {"value": "sequence", "name": "sequence    - View API call sequence diagram"},
+    {"value": "lifeline", "name": "lifeline    - View parameter lifespan analysis"},
+    {"value": "report", "name": "report      - View summary report"},
+    {"value": "score", "name": "score       - Score IDOR candidates by risk"},
+    {"value": "diff", "name": "diff        - Compare two reports"},
+    {"value": "auth", "name": "auth        - Analyze auth context & cross-user access"},
+    {"value": "csv", "name": "csv         - Export report to CSV"},
+    {"value": "sarif", "name": "sarif       - Export findings to SARIF format"},
 ]
 
 # Analysis commands that require a report file
-ANALYSIS_COMMANDS = {"chain", "tree", "trace", "report", "flow", "graph", "export"}
+ANALYSIS_COMMANDS = {
+    "chain", "sequence", "lifeline", "report",
+    "score", "auth", "csv", "sarif",
+}
 
 
 def prompt_command() -> str | None:
@@ -143,15 +149,6 @@ def prompt_domains(flows: list[dict], min_flows: int = 10) -> list[str] | None:
         return []
 
     return result
-
-
-def prompt_id_value(default: str = "") -> str | None:
-    """Prompt user to enter an ID value for tracing."""
-    return questionary.text(
-        "Enter ID value to trace:",
-        default=default,
-        style=STYLE,
-    ).ask()
 
 
 def prompt_html_output(default: str = "chain.html") -> str | None:
@@ -294,8 +291,8 @@ def run_interactive_mode():
             # Build command arguments
             args = [command, report_file]
 
-            # Domain filter for relevant commands
-            if command in ("chain", "tree", "flow", "graph"):
+            # Domain filter for chain command
+            if command == "chain":
                 domains = prompt_domains(data.flows)
                 if domains is None:
                     console.print("\n[dim]Cancelled.[/dim]")
@@ -303,22 +300,12 @@ def run_interactive_mode():
                 if domains:
                     args.extend(["--domains", ",".join(domains)])
 
-            # ID input for trace command
-            if command == "trace":
-                id_value = prompt_id_value()
-                if id_value is None:
-                    console.print("\n[dim]Cancelled.[/dim]")
-                    break
-                args.extend(["--id", id_value])
-
-            # HTML output for chain/export
-            if command in ("chain", "export"):
-                html_output = prompt_html_output()
+            # HTML output for chain/sequence
+            if command in ("chain", "sequence"):
+                default_name = f"{command}.html"
+                html_output = prompt_html_output(default=default_name)
                 if html_output:
-                    if command == "chain":
-                        args.extend(["--html", html_output])
-                    else:
-                        args.extend(["--output", html_output])
+                    args.extend(["--html", html_output])
 
             # Execute command
             console.print()

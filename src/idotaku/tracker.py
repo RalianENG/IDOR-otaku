@@ -2,6 +2,7 @@
 
 import re
 import json
+import hashlib
 from datetime import datetime
 from dataclasses import dataclass, field
 from typing import Optional
@@ -51,6 +52,7 @@ class FlowRecord:
     timestamp: str
     request_ids: list[dict] = field(default_factory=list)   # [{value, type, location, field}]
     response_ids: list[dict] = field(default_factory=list)  # [{value, type, location, field}]
+    auth_context: dict | None = None  # {"auth_type": str, "token_hash": str}
 
 
 class IDTracker:
@@ -323,6 +325,29 @@ class IDTracker:
 
         return found
 
+    def _extract_auth_context(self, headers) -> dict | None:
+        """リクエストヘッダーから認証コンテキストを抽出"""
+        auth_header = headers.get("authorization", "")
+        if auth_header:
+            parts = auth_header.split(" ", 1)
+            auth_type = parts[0] if parts else "Unknown"
+            token = parts[1] if len(parts) > 1 else auth_header
+            token_hash = hashlib.sha256(token.encode()).hexdigest()[:8]
+            return {"auth_type": auth_type, "token_hash": token_hash}
+
+        cookie_header = headers.get("cookie", "")
+        if cookie_header:
+            session_names = {"session", "sessionid", "sid", "session_id", "jsessionid", "phpsessid"}
+            for part in cookie_header.split(";"):
+                part = part.strip()
+                if "=" in part:
+                    name, value = part.split("=", 1)
+                    if name.strip().lower() in session_names:
+                        token_hash = hashlib.sha256(value.encode()).hexdigest()[:8]
+                        return {"auth_type": "Cookie", "token_hash": token_hash}
+
+        return None
+
     def _process_url(self, url: str, method: str, direction: str, timestamp: str):
         """URLからIDを抽出"""
         parsed = urlparse(url)
@@ -416,6 +441,11 @@ class IDTracker:
                 timestamp=timestamp,
             )
 
+        # 認証コンテキストを抽出
+        auth_ctx = self._extract_auth_context(flow.request.headers)
+        if auth_ctx:
+            self.flow_records[flow_id].auth_context = auth_ctx
+
         # IDを収集
         found_ids = []
         found_ids.extend(self._collect_ids_from_url(url))
@@ -508,14 +538,17 @@ class IDTracker:
 
         # Flow単位のレポート
         for flow_id, flow_rec in self.flow_records.items():
-            report["flows"].append({
+            flow_dict = {
                 "flow_id": flow_rec.flow_id,
                 "method": flow_rec.method,
                 "url": flow_rec.url,
                 "timestamp": flow_rec.timestamp,
                 "request_ids": flow_rec.request_ids,
                 "response_ids": flow_rec.response_ids,
-            })
+            }
+            if flow_rec.auth_context:
+                flow_dict["auth_context"] = flow_rec.auth_context
+            report["flows"].append(flow_dict)
 
         for id_value, tracked in self.tracked_ids.items():
             report["tracked_ids"][id_value] = {

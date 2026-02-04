@@ -5,16 +5,17 @@ import click
 from .commands import (
     run_proxy,
     report,
-    tree,
-    flow,
-    trace,
     sequence,
     lifeline,
-    graph,
     chain,
-    export,
     version,
     interactive,
+    csv_export,
+    sarif_export,
+    score,
+    har_import,
+    diff,
+    auth,
 )
 
 
@@ -50,16 +51,17 @@ def main(ctx, port, web_port, output, min_numeric, config, no_browser, browser, 
 
 # Register commands
 main.add_command(report)
-main.add_command(tree)
-main.add_command(flow)
-main.add_command(trace)
 main.add_command(sequence)
 main.add_command(lifeline)
-main.add_command(graph)
 main.add_command(chain)
-main.add_command(export)
 main.add_command(version)
 main.add_command(interactive)
+main.add_command(csv_export)
+main.add_command(sarif_export)
+main.add_command(score)
+main.add_command(har_import)
+main.add_command(diff)
+main.add_command(auth)
 
 
 if __name__ == "__main__":

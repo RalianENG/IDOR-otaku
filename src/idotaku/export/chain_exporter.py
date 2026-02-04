@@ -196,7 +196,7 @@ def export_chain_html(
         tree["nodes"] = nodes
         trees_data.append(tree)
 
-    trees_json = json.dumps(trees_data, ensure_ascii=False)
+    trees_json = json.dumps(trees_data)
 
     # Build HTML content
     html_content = f"""<!DOCTYPE html>
@@ -212,18 +212,14 @@ def export_chain_html(
 <body>
     <div class="tree-panel">
         <h1>Parameter Chain Trees</h1>
+        <div class="security-warning">
+            <strong>Warning:</strong> This report may contain sensitive data extracted from intercepted HTTP traffic
+            (tokens, session IDs, API keys, cookies). Do not share this file publicly.
+        </div>
         <div id="trees"></div>
     </div>
 
-    <div class="detail-overlay" id="detailPanel">
-        <div class="detail-header">
-            <h2>API Details</h2>
-            <button class="close-btn" onclick="closePanel()" title="Close (Esc)">×</button>
-        </div>
-        <div class="detail-body" id="details"></div>
-    </div>
-
-    <div class="hint">Click node to view details | <kbd>Esc</kbd> to close</div>
+    <div class="hint">Hover path for full URL | Click <kbd>+</kbd> to expand nodes</div>
 
     <script>
 {CHAIN_SCRIPTS.replace("{trees_json}", trees_json)}

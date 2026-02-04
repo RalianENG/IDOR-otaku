@@ -4,294 +4,306 @@
 # Note: {trees_json} placeholder will be replaced with actual data
 CHAIN_SCRIPTS = """
 const treesData = {trees_json};
-let selectedNode = null;
+
+// Configuration
+const INDENT_PX = 20;
+const MAX_INDENT_PX = 200;
+const AUTO_COLLAPSE_DEPTH = 3;
+const PARAM_COLLAPSE_THRESHOLD = 5;
+
+function escapeHtml(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/'/g,'&#39;');
+}
 
 function truncatePath(path, max) {
     return path.length > max ? path.substring(0, max - 3) + '...' : path;
 }
 
 function truncateValue(val, max) {
+    val = String(val);
     return val.length > max ? val.substring(0, max - 2) + '..' : val;
 }
 
 function formatParams(params, maxLen) {
-    // Format array of params for display
     if (!params || params.length === 0) return '';
-    if (params.length === 1) {
-        return truncateValue(params[0], maxLen);
-    }
-    // Multiple params: show count
+    if (params.length === 1) return truncateValue(params[0], maxLen);
     const first = truncateValue(params[0], maxLen - 6);
     return first + ' +' + (params.length - 1);
 }
 
-function renderNode(node, isRoot = false) {
-    // Handle cycle reference nodes (max path visits, children deferred to target)
-    if (node.type === 'cycle_ref') {
-        let html = '<div class="node-item" style="color: #8b949e; font-style: italic;">';
-        html += '<span style="width: 26px; display: inline-block;"></span>';
-        html += '↩ <span style="color: #3fb950;">[#' + node.target_index + ']</span>';
-        if (node.via_params && node.via_params.length > 0) {
-            html += ' <span style="color: #6e7681;">via </span><span class="param-value" style="color: #6e7681;">' + formatParams(node.via_params, 16) + '</span>';
+// Build a one-line summary of the chain by following the first child at each level
+function buildChainSummary(tree) {
+    const steps = [];
+    let current = tree;
+    const maxSteps = 8;
+    while (current && current.type !== 'cycle_ref' && steps.length < maxSteps) {
+        steps.push({ method: current.method, path: truncatePath(current.path, 25) });
+        if (current.children && current.children.length > 0) {
+            current = current.children.find(function(c) { return c.type !== 'cycle_ref'; }) || null;
+        } else {
+            current = null;
         }
-        html += ' <span style="color: #6e7681; font-size: 0.85em;">(continues below)</span>';
+    }
+    return steps.map(function(s) {
+        return '<span class="summary-step"><span class="method ' + s.method + '">' + s.method + '</span> ' + escapeHtml(s.path) + '</span>';
+    }).join('<span class="summary-arrow">&#8594;</span>');
+}
+
+// Render cycle reference node
+function renderCycleRef(node, depth) {
+    const indent = Math.min(depth * INDENT_PX, MAX_INDENT_PX);
+    let html = '<div class="node-cycle-ref cycle-ref-' + node.flow_idx + '"'
+        + ' style="margin-left:' + indent + 'px"'
+        + ' onclick="scrollToNode(' + node.target_index + ')">';
+    html += '&#8617; <span class="cycle-target">[#' + node.target_index + ']</span>';
+    if (node.via_params && node.via_params.length > 0) {
+        html += ' <span class="cycle-params">via ' + escapeHtml(formatParams(node.via_params, 20)) + '</span>';
+    }
+    html += ' <span style="font-size:0.85em">(see above)</span>';
+    html += '</div>';
+    return html;
+}
+
+// Render inline param body (Consumes / Produces)
+function renderCardBody(node) {
+    const reqIds = node.request_ids || [];
+    const resIds = node.response_ids || [];
+    if (reqIds.length === 0 && resIds.length === 0) return '';
+
+    // Determine which response values flow to children
+    const childViaParams = new Set();
+    if (node.children) {
+        for (const child of node.children) {
+            if (child.via_params) {
+                child.via_params.forEach(function(p) { childViaParams.add(p); });
+            }
+        }
+    }
+
+    let html = '<div class="node-card-body">';
+
+    // Consumes section
+    if (reqIds.length > 0) {
+        const manyParams = reqIds.length > PARAM_COLLAPSE_THRESHOLD;
+        html += '<div class="param-section' + (manyParams ? ' params-collapsed' : '') + '">';
+        html += '<div class="param-section-title consumes">Consumes (' + reqIds.length + ')</div>';
+        for (const id of reqIds) {
+            const label = id.field ? id.field : truncateValue(id.value, 20);
+            html += '<span class="param-chip consumes" title="' + escapeHtml(id.location + ': ' + id.value) + '">'
+                + escapeHtml(truncateValue(label, 24)) + '</span>';
+        }
+        if (manyParams) {
+            html += '<button class="param-expand-btn" onclick="toggleParamExpand(event)">+'
+                + (reqIds.length - PARAM_COLLAPSE_THRESHOLD) + ' more</button>';
+        }
         html += '</div>';
-        return html;
     }
 
+    // Produces section
+    if (resIds.length > 0) {
+        const manyParams = resIds.length > PARAM_COLLAPSE_THRESHOLD;
+        html += '<div class="param-section' + (manyParams ? ' params-collapsed' : '') + '">';
+        html += '<div class="param-section-title produces">Produces (' + resIds.length + ')</div>';
+        for (const id of resIds) {
+            const flowsToChild = childViaParams.has(id.value);
+            const label = id.field ? id.field : truncateValue(id.value, 20);
+            html += '<span class="param-chip produces' + (flowsToChild ? ' flows-to-child' : '') + '"'
+                + ' title="' + escapeHtml(id.location + ': ' + id.value) + '">'
+                + escapeHtml(truncateValue(label, 24)) + '</span>';
+        }
+        if (manyParams) {
+            html += '<button class="param-expand-btn" onclick="toggleParamExpand(event)">+'
+                + (resIds.length - PARAM_COLLAPSE_THRESHOLD) + ' more</button>';
+        }
+        html += '</div>';
+    }
+
+    html += '</div>';
+    return html;
+}
+
+// Render a single node card
+function renderNodeCard(node, depth, isRoot) {
+    if (node.type === 'cycle_ref') {
+        return renderCycleRef(node, depth);
+    }
+
+    const indent = Math.min(depth * INDENT_PX, MAX_INDENT_PX);
+    const nodeId = 'node-' + node.index + '-' + node.flow_idx;
     const hasChildren = node.children && node.children.length > 0;
-    const nodeId = 'node-' + node.flow_idx + '-' + Math.random().toString(36).substr(2, 9);
+    const startCollapsed = !isRoot && depth >= AUTO_COLLAPSE_DEPTH;
 
-    let html = '<div class="node-item' + (node.from_cycle ? ' from-cycle' : '') + '" data-flow=\\'' + JSON.stringify(node).replace(/'/g, "\\\\'") + '\\' data-node-index="' + node.index + '" id="' + nodeId + '">';
+    let html = '<div class="node-card' + (node.from_cycle ? ' from-cycle' : '') + '"'
+        + ' style="margin-left:' + indent + 'px"'
+        + ' data-node-index="' + node.index + '"'
+        + ' data-full-url="' + escapeHtml(node.url) + '"'
+        + ' id="' + nodeId + '">';
 
+    // Via parameter banner (shows which param connects this card to its parent)
+    if (!isRoot && node.via_params && node.via_params.length > 0) {
+        html += '<div class="node-via-banner">';
+        html += '<span class="via-label">via</span>';
+        for (let pi = 0; pi < node.via_params.length; pi++) {
+            if (pi > 0) html += '<span class="via-arrow">,</span>';
+            html += '<span class="via-param" title="' + escapeHtml(node.via_params[pi]) + '">'
+                + escapeHtml(truncateValue(node.via_params[pi], 30)) + '</span>';
+        }
+        html += '<span class="via-arrow">&#8594;</span>';
+        html += '</div>';
+    }
+
+    // Card header
+    html += '<div class="node-card-header">';
     if (hasChildren) {
-        html += '<span class="toggle-btn" onclick="toggleChildren(event, \\'' + nodeId + '\\')">−</span>';
+        const symbol = startCollapsed ? '+' : '\\u2212';
+        html += '<span class="toggle-btn" onclick="toggleChildren(event, \\'' + nodeId + '\\')">' + symbol + '</span>';
     } else {
-        html += '<span style="width: 26px; display: inline-block;"></span>';
+        html += '<span style="width:18px;display:inline-block"></span>';
     }
-
-    // Show cycle continuation indicator
     if (node.from_cycle) {
-        html += '<span style="color: #f0883e; margin-right: 4px;" title="Continued from cycle">↳</span>';
+        html += '<span style="color:#f0883e" title="Continued from cycle">\\u21B3</span>';
     }
-
-    // Display index
-    html += '<span style="color: #3fb950; font-weight: bold; margin-right: 6px;">[#' + node.index + ']</span>';
-
+    html += '<span class="node-index">[#' + node.index + ']</span>';
     html += '<span class="method ' + node.method + '">' + node.method + '</span>';
-
-    if (node.via_params && node.via_params.length > 0 && !isRoot) {
-        html += '<span class="param-value">' + formatParams(node.via_params, 16) + '</span>';
-        html += '<span class="param-arrow">→</span>';
-    }
-
-    html += '<span class="path">' + truncatePath(node.path, 40) + '</span>';
+    html += '<span class="path"'
+        + ' onmouseenter="showUrlPopover(event, \\'' + escapeHtml(node.url).replace(/'/g, "\\\\'") + '\\')"'
+        + ' onmouseleave="hideUrlPopover()">'
+        + escapeHtml(truncatePath(node.path, 40)) + '</span>';
     if (node.domain) {
-        html += '<span class="domain">' + node.domain + '</span>';
+        html += '<span class="domain">' + escapeHtml(node.domain) + '</span>';
     }
     html += '</div>';
 
+    // Card body (inline params)
+    html += renderCardBody(node);
+
+    html += '</div>';
+
+    // Children with CSS tree line variables
     if (hasChildren) {
-        html += '<div class="tree-children" id="children-' + nodeId + '">';
-        html += '<div class="tree-node">';
+        const collapsedClass = startCollapsed ? ' collapsed' : '';
+        const lineX = indent + 9;
+        const childIndent = Math.min((depth + 1) * INDENT_PX, MAX_INDENT_PX);
+        html += '<div class="node-children' + collapsedClass + '" id="children-' + nodeId + '"'
+            + ' style="--tree-line-x:' + lineX + 'px; --child-indent:' + childIndent + 'px">';
         for (const child of node.children) {
-            html += renderNode(child);
+            html += renderNodeCard(child, depth + 1, false);
         }
-        html += '</div></div>';
+        html += '</div>';
     }
 
     return html;
 }
 
+// Render all trees
 function renderTrees() {
     const container = document.getElementById('trees');
     let html = '';
 
-    for (const tree of treesData) {
+    for (let i = 0; i < treesData.length; i++) {
+        const tree = treesData[i];
         html += '<div class="tree-root">';
+
+        // Header with mini summary
         html += '<div class="tree-header">';
         html += '<span class="rank">#' + tree.rank + '</span>';
-        html += '<span style="color: #3fb950; font-weight: bold; margin-right: 6px;">[#' + tree.index + ']</span>';
         html += '<span class="method ' + tree.method + '">' + tree.method + '</span> ';
-        html += '<span class="path">' + truncatePath(tree.path, 50) + '</span>';
-        if (tree.domain) {
-            html += '<span class="domain">' + tree.domain + '</span>';
-        }
+        html += '<span class="path" style="cursor:default">' + escapeHtml(truncatePath(tree.path, 50)) + '</span>';
+        if (tree.domain) html += '<span class="domain">' + escapeHtml(tree.domain) + '</span>';
         html += '<span class="stats">depth:' + tree.depth + ' nodes:' + tree.nodes + '</span>';
+        html += '<div class="chain-summary">' + buildChainSummary(tree) + '</div>';
         html += '</div>';
-        html += '<div class="tree-node">';
-        for (const child of tree.children) {
-            html += renderNode(child);
-        }
-        html += '</div></div>';
+
+        // Tree container
+        html += '<div class="tree-container" id="tree-container-' + i + '">';
+
+        // Render root node card at depth 0
+        html += renderNodeCard(tree, 0, true);
+
+        html += '</div>';
+        html += '</div>';
     }
 
     container.innerHTML = html;
-
-    // Add click handlers
-    document.querySelectorAll('.node-item').forEach(item => {
-        item.addEventListener('click', (e) => {
-            if (e.target.classList.contains('toggle-btn')) return;
-            selectNode(item);
-        });
-    });
-
-    // Also make tree headers clickable
-    document.querySelectorAll('.tree-header').forEach((header, idx) => {
-        header.style.cursor = 'pointer';
-        header.addEventListener('click', () => {
-            showDetails(treesData[idx]);
-        });
-    });
 }
 
+// Toggle children collapse/expand
 function toggleChildren(event, nodeId) {
     event.stopPropagation();
     const childrenEl = document.getElementById('children-' + nodeId);
+    if (!childrenEl) return;
     const toggleBtn = event.target;
 
     if (childrenEl.classList.contains('collapsed')) {
         childrenEl.classList.remove('collapsed');
         childrenEl.style.maxHeight = childrenEl.scrollHeight + 'px';
-        toggleBtn.textContent = '−';
+        toggleBtn.textContent = '\\u2212';
     } else {
         childrenEl.style.maxHeight = childrenEl.scrollHeight + 'px';
-        childrenEl.offsetHeight; // Force reflow
+        childrenEl.offsetHeight; // force reflow
         childrenEl.classList.add('collapsed');
         toggleBtn.textContent = '+';
     }
 }
 
-function selectNode(item) {
-    document.querySelectorAll('.node-item').forEach(n => n.classList.remove('selected'));
-    item.classList.add('selected');
-    const data = JSON.parse(item.dataset.flow);
-    showDetails(data);
+// Toggle param expand
+function toggleParamExpand(event) {
+    event.stopPropagation();
+    const section = event.target.closest('.param-section');
+    if (!section) return;
+    if (section.classList.contains('params-collapsed')) {
+        section.classList.remove('params-collapsed');
+        event.target.style.display = 'none';
+    }
 }
 
-function openPanel() {
-    document.getElementById('detailPanel').classList.add('open');
+// URL popover
+function showUrlPopover(event, fullUrl) {
+    if (!fullUrl || fullUrl === '?') return;
+    let popover = document.getElementById('url-popover');
+    if (!popover) {
+        popover = document.createElement('div');
+        popover.id = 'url-popover';
+        popover.className = 'url-popover';
+        document.body.appendChild(popover);
+    }
+    popover.textContent = fullUrl;
+    const rect = event.target.getBoundingClientRect();
+    popover.style.left = rect.left + 'px';
+    popover.style.top = (rect.bottom + 6) + 'px';
+    popover.classList.add('visible');
 }
 
-function closePanel() {
-    document.getElementById('detailPanel').classList.remove('open');
-    document.querySelectorAll('.node-item').forEach(n => n.classList.remove('selected'));
+function hideUrlPopover() {
+    const popover = document.getElementById('url-popover');
+    if (popover) popover.classList.remove('visible');
 }
 
+// Scroll to a node (for cycle ref clicks)
 function scrollToNode(targetIndex) {
-    // Find the node with the target index
     const targetNode = document.querySelector('[data-node-index="' + targetIndex + '"]');
     if (!targetNode) return;
 
-    // Expand all parent tree-children to make target visible
+    // Expand all collapsed parents
     let parent = targetNode.parentElement;
     while (parent) {
-        if (parent.classList && parent.classList.contains('tree-children') && parent.classList.contains('collapsed')) {
+        if (parent.classList && parent.classList.contains('node-children') && parent.classList.contains('collapsed')) {
             parent.classList.remove('collapsed');
             parent.style.maxHeight = parent.scrollHeight + 'px';
-            // Update toggle button
             const prevSibling = parent.previousElementSibling;
             if (prevSibling) {
                 const toggleBtn = prevSibling.querySelector('.toggle-btn');
-                if (toggleBtn) toggleBtn.textContent = '−';
+                if (toggleBtn) toggleBtn.textContent = '\\u2212';
             }
         }
         parent = parent.parentElement;
     }
 
-    // Scroll to the node
     targetNode.scrollIntoView({ behavior: 'smooth', block: 'center' });
-
-    // Highlight the node temporarily
     targetNode.classList.add('highlight-target');
-    setTimeout(() => {
+    setTimeout(function() {
         targetNode.classList.remove('highlight-target');
     }, 2000);
-
-    // Select the node and show details
-    selectNode(targetNode);
-}
-
-// Esc key to close
-document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') closePanel();
-});
-
-function showDetails(node) {
-    const container = document.getElementById('details');
-    openPanel();
-
-    let html = '';
-
-    // URL
-    html += '<div class="detail-section">';
-    html += '<h3>URL</h3>';
-    html += '<div class="detail-url">' + node.url + '</div>';
-    html += '</div>';
-
-    // Timestamp
-    if (node.timestamp) {
-        html += '<div class="detail-section">';
-        html += '<h3>Timestamp</h3>';
-        html += '<div class="detail-time">' + node.timestamp + '</div>';
-        html += '</div>';
-    }
-
-    // Via Parameters (connection params)
-    if (node.via_params && node.via_params.length > 0) {
-        html += '<div class="detail-section">';
-        html += '<h3>Connected via Parameter' + (node.via_params.length > 1 ? 's (' + node.via_params.length + ')' : '') + '</h3>';
-        html += '<div class="detail-url">';
-        for (const p of node.via_params) {
-            html += '<div style="font-family: monospace; margin: 4px 0;">' + p + '</div>';
-        }
-        html += '</div>';
-        html += '</div>';
-    }
-
-    // From Cycle indicator
-    if (node.from_cycle) {
-        html += '<div class="detail-section">';
-        html += '<h3 style="color: #f0883e;">↳ Continued from Cycle</h3>';
-        html += '<div class="detail-url" style="background: #f0883e22; border: 1px solid #f0883e;">';
-        html += '<div>This node was added as a continuation from a cycle.</div>';
-        html += '</div>';
-        html += '</div>';
-    }
-
-    // Cycle Information
-    if (node.is_cycle && node.cycle_to_index !== undefined) {
-        html += '<div class="detail-section">';
-        html += '<h3 style="color: #f85149;">⟳ Cycle Detected</h3>';
-        html += '<div class="detail-url" style="background: #f8514922; border: 1px solid #f85149;">';
-        html += '<div>Same API as <span style="color: #3fb950; font-weight: bold;">[#' + node.cycle_to_index + ']</span></div>';
-        if (node.via_params && node.via_params.length > 0) {
-            html += '<div style="color: #8b949e; margin-top: 8px;">via parameter' + (node.via_params.length > 1 ? 's' : '') + ':</div>';
-            for (const p of node.via_params) {
-                html += '<div style="color: #79c0ff; font-family: monospace; margin-left: 8px;">' + p + '</div>';
-            }
-        }
-        html += '</div>';
-        html += '</div>';
-    }
-
-    // Request IDs
-    if (node.request_ids && node.request_ids.length > 0) {
-        html += '<div class="detail-section">';
-        html += '<h3><span class="badge req">REQ</span> Request Parameters (' + node.request_ids.length + ')</h3>';
-        html += '<table class="param-table"><thead><tr>';
-        html += '<th>Value</th><th>Type</th><th>Location</th><th>Field</th>';
-        html += '</tr></thead><tbody>';
-        for (const id of node.request_ids) {
-            html += '<tr>';
-            html += '<td class="value" title="' + id.value + '">' + truncateValue(id.value, 24) + '</td>';
-            html += '<td class="type">' + (id.type || '-') + '</td>';
-            html += '<td class="location">' + (id.location || '-') + '</td>';
-            html += '<td class="field">' + (id.field || '-') + '</td>';
-            html += '</tr>';
-        }
-        html += '</tbody></table></div>';
-    }
-
-    // Response IDs
-    if (node.response_ids && node.response_ids.length > 0) {
-        html += '<div class="detail-section">';
-        html += '<h3><span class="badge res">RES</span> Response Parameters (' + node.response_ids.length + ')</h3>';
-        html += '<table class="param-table"><thead><tr>';
-        html += '<th>Value</th><th>Type</th><th>Location</th><th>Field</th>';
-        html += '</tr></thead><tbody>';
-        for (const id of node.response_ids) {
-            html += '<tr>';
-            html += '<td class="value" title="' + id.value + '">' + truncateValue(id.value, 24) + '</td>';
-            html += '<td class="type">' + (id.type || '-') + '</td>';
-            html += '<td class="location">' + (id.location || '-') + '</td>';
-            html += '<td class="field">' + (id.field || '-') + '</td>';
-            html += '</tr>';
-        }
-        html += '</tbody></table></div>';
-    }
-
-    container.innerHTML = html;
 }
 
 // Initialize

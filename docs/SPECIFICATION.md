@@ -44,7 +44,18 @@ idotaku/
         ├── __init__.py     # パッケージ初期化、バージョン定義
         ├── tracker.py      # コアロジック（mitmproxyアドオン）
         ├── config.py       # 設定ファイルローダー
-        └── cli.py          # CLIエントリーポイント
+        ├── cli.py          # CLIエントリーポイント
+        ├── commands/       # サブコマンド群
+        │   ├── run.py      # プロキシ起動
+        │   ├── report.py   # サマリーレポート
+        │   ├── chain.py    # パラメータチェーン検出
+        │   ├── sequence.py # シーケンス表示
+        │   ├── lifeline.py # IDライフライン表示
+        │   └── interactive_cmd.py  # 対話モード
+        ├── export/         # HTMLエクスポート
+        │   ├── chain_exporter.py    # chainのHTML出力
+        │   └── sequence_exporter.py # sequenceのHTML出力
+        └── interactive.py  # 対話モードUI
 ```
 
 ---
@@ -322,33 +333,6 @@ idotaku [OPTIONS]
 idotaku report [REPORT_FILE]
 ```
 
-### tree - IDツリー表示
-
-```bash
-idotaku tree [REPORT_FILE] [OPTIONS]
-```
-
-| オプション | 説明 |
-|------------|------|
-| `--idor-only` | IDOR候補のIDのみ表示 |
-| `--type TYPE` | ID種別でフィルタ (numeric/uuid/token/all) |
-
-### flow - IDタイムライン表示
-
-```bash
-idotaku flow [REPORT_FILE]
-```
-
-### trace - API遷移可視化
-
-```bash
-idotaku trace [REPORT_FILE] [OPTIONS]
-```
-
-| オプション | 説明 |
-|------------|------|
-| `--compact` | 後続リクエストで使われていないIDを非表示 |
-
 ### chain - パラメータチェーン検出
 
 ```bash
@@ -391,6 +375,7 @@ idotaku sequence [REPORT_FILE] [OPTIONS]
 | オプション | 説明 |
 |------------|------|
 | `--limit N` | 表示するAPIコール数（デフォルト: 30） |
+| `--html FILE` | インタラクティブHTMLとしてエクスポート |
 
 ### lifeline - IDライフライン表示
 
@@ -402,27 +387,6 @@ idotaku lifeline [REPORT_FILE] [OPTIONS]
 |------------|------|
 | `--min-uses N` | 最低使用回数（デフォルト: 1） |
 | `--sort TYPE` | ソート順: lifespan/uses/first |
-
-### graph - API依存グラフ
-
-```bash
-idotaku graph [REPORT_FILE] [OPTIONS]
-```
-
-| オプション | 説明 |
-|------------|------|
-| `--min-connections N` | 最低接続数（デフォルト: 1） |
-
-### export - HTMLエクスポート
-
-```bash
-idotaku export [REPORT_FILE] [OPTIONS]
-```
-
-| オプション | 説明 |
-|------------|------|
-| `--output FILE` | 出力ファイル名 |
-| `--section TYPE` | 出力セクション: all/tree/trace/timeline |
 
 ### version - バージョン表示
 
@@ -476,14 +440,12 @@ idotaku -i
 
 - [x] ドメインフィルタリング
 - [x] カスタムIDパターン定義
-- [x] HTMLレポートエクスポート
 - [x] パラメータチェーン検出・可視化
-- [x] API依存グラフ
 - [x] シーケンス表示
 - [x] IDライフライン表示
-- [x] API遷移可視化
 - [x] 対話式CLI（インタラクティブモード）
 - [x] chainコマンドのドメインフィルタオプション
+- [x] chain / sequence のインタラクティブHTMLエクスポート
 
 ### 未実装
 

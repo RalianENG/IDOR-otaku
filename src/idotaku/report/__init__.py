@@ -18,6 +18,13 @@ from .analysis import (
     build_id_transition_map,
     find_chain_roots,
 )
+from .scoring import score_idor_finding, score_all_findings, RiskScore
+from .diff import diff_reports, diff_to_dict, DiffResult
+from .auth_analysis import (
+    detect_cross_user_access,
+    enrich_idor_with_auth,
+    CrossUserAccess,
+)
 
 __all__ = [
     "load_report",
@@ -34,4 +41,13 @@ __all__ = [
     "build_api_dependencies",
     "build_id_transition_map",
     "find_chain_roots",
+    "score_idor_finding",
+    "score_all_findings",
+    "RiskScore",
+    "diff_reports",
+    "diff_to_dict",
+    "DiffResult",
+    "detect_cross_user_access",
+    "enrich_idor_with_auth",
+    "CrossUserAccess",
 ]

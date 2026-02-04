@@ -4,7 +4,7 @@
 
 ```bash
 # リポジトリをクローン
-git clone https://github.com/yourname/idotaku.git
+git clone https://github.com/RalianENG/IDOR-otaku.git
 cd idotaku
 
 # 仮想環境作成（推奨）
@@ -56,11 +56,11 @@ APIコールが自動的に記録されます。
 ### 4. レポート確認
 
 ```bash
-# サマリー表示
+# サマリー表示（IDOR候補の確認）
 idotaku report
 
-# ID別ツリー形式で可視化
-idotaku tree
+# リスクスコアリング（IDOR候補を重要度順に表示）
+idotaku score
 
 # パラメータチェーン検出（ビジネスフロー発見）
 idotaku chain
@@ -68,26 +68,51 @@ idotaku chain
 # 特定ドメインのみ分析（ノイズ除去）
 idotaku chain --domains "api.example.com,*.internal.com"
 
-# HTMLでインタラクティブに可視化
+# チェーンをHTMLでインタラクティブに可視化
 idotaku chain --html chain_report.html
+
+# APIシーケンス図をHTML出力（IDハイライト付き）
+idotaku sequence --html sequence_report.html
+
+# パラメータのライフスパン分析
+idotaku lifeline
+
+# 認証コンテキスト分析（クロスユーザーアクセス検出）
+idotaku auth
 ```
 
 ---
 
 ## コマンド早見表
 
+### 基本
+
 | コマンド | 説明 |
 |----------|------|
 | `idotaku -i` | 対話モード（メニュー選択式） |
 | `idotaku` | プロキシ起動 |
-| `idotaku report` | レポートサマリー表示 |
-| `idotaku tree` | ID別ツリー形式で可視化 |
-| `idotaku flow` | ID別タイムライン形式で可視化 |
-| `idotaku trace` | API遷移を可視化（ID連鎖を表示） |
-| `idotaku chain` | パラメータチェーン検出・ランキング |
-| `idotaku export` | HTMLレポート出力 |
 
-その他: `sequence`, `lifeline`, `graph`, `interactive` - 詳細は [SPECIFICATION.md](./SPECIFICATION.md) 参照
+### 分析
+
+| コマンド | 説明 |
+|----------|------|
+| `idotaku report` | IDOR検出レポートのサマリー表示 |
+| `idotaku score` | IDOR候補のリスクスコアリング（critical/high/medium/low） |
+| `idotaku chain` | パラメータチェーン検出・ランキング（`--html` でHTML出力） |
+| `idotaku sequence` | APIシーケンス図（`--html` でHTML出力、IDハイライト付き） |
+| `idotaku lifeline` | パラメータのライフスパン分析 |
+| `idotaku auth` | 認証コンテキスト分析（クロスユーザーアクセス検出） |
+| `idotaku diff A.json B.json` | 2つのレポートの差分比較 |
+
+### インポート・エクスポート
+
+| コマンド | 説明 |
+|----------|------|
+| `idotaku import-har file.har` | HARファイルからレポート生成 |
+| `idotaku csv report.json` | IDOR候補をCSV出力（`-m flows` でフロー一覧） |
+| `idotaku sarif report.json` | SARIF 2.1.0形式で出力（GitHub Code Scanning対応） |
+
+詳細は [SPECIFICATION.md](./SPECIFICATION.md) 参照
 
 ---
 
@@ -108,36 +133,6 @@ Total Flows: 25          ← 記録されたAPI呼び出し数
 - **Origin**: レスポンスでIDが最初に出現した場所（正規の発生源）
 - **Usage**: リクエストでIDが使用された場所
 - **IDOR候補**: Usageはあるが Originがない = どこから来たか不明なID
-
-### tree - IDツリー表示
-
-```
-user_123 (token)
-├── [ORIGIN] GET /api/login → body.user_id (12:00:00)
-├── [USAGE] GET /api/users/user_123 → url_path (12:00:05)
-└── [USAGE] PUT /api/users/user_123 → url_path (12:00:10)
-
-99999 (numeric) ⚠ IDOR candidate
-└── [USAGE] GET /api/orders/99999 → url_path (12:00:15)
-```
-
-- `[ORIGIN]`: IDの発生源（レスポンスで受け取った）
-- `[USAGE]`: IDの使用箇所（リクエストで送信した）
-- `⚠ IDOR candidate`: Originなし = 外部から持ち込まれた可能性
-
-### flow - IDタイムライン表示
-
-```
-user_123 [token]
-  ◉ GET /login (res.body) → GET /users (req.url) → PUT /users (req.url)
-
-99999 [numeric] ⚠
-  → GET /orders (req.url)
-```
-
-- `◉`: Origin（レスポンスで発生）
-- `→`: Usage（リクエストで使用）
-- `⚠`: IDOR候補
 
 ### chain - パラメータチェーン
 
@@ -163,25 +158,20 @@ user_123 [token]
 - `深さ × 100 + ノード数 × 1`
 - 深いチェーン = 複雑なビジネスフロー = 重点的にテストすべき箇所
 
-### trace - API遷移表示
+### HTML出力
 
-```
-[1] GET /api/login
-    Response IDs:
-      user_id: abc123 (body.data.id)
-      session: xyz789 (header.set-cookie)
-    ↓ user_id → [2], session → [2]
+`chain` と `sequence` コマンドは `--html` オプションでインタラクティブなHTMLレポートを生成できます:
 
-[2] GET /api/users/abc123
-    Request IDs:
-      abc123 (url_path) ← from [1]
-      xyz789 (header.cookie) ← from [1]
-    Response IDs:
-      org_id: org456 (body.organization_id)
+```bash
+# チェーンHTMLレポート（カード型ツリー + コネクタライン）
+idotaku chain --html chain_report.html
+
+# シーケンスHTMLレポート（UMLシーケンス図 + IDハイライト）
+idotaku sequence --html sequence_report.html
 ```
 
-- `← from [N]`: どのAPIから流れてきたパラメータか
-- `↓ param → [N]`: このパラメータがどのAPIに流れるか
+- **chain HTML**: パラメータチェーンをカード型ノードで表示。展開/折りたたみ、via パラメータ表示、Consumes/Producesチップ
+- **sequence HTML**: APIコールをシーケンス図で表示。IDチップをクリックすると同じIDの全出現箇所がハイライト。IDOR候補は赤枠で警告
 
 ---
 
@@ -207,14 +197,44 @@ idotaku --browser chrome
 idotaku --config ./my-config.yaml
 idotaku -c idotaku.yaml
 
-# IDOR候補のみ表示
-idotaku tree --idor-only
-
 # チェーン分析（ドメインフィルタ）
 idotaku chain --domains "api.example.com"
 
 # チェーンをHTMLで出力
 idotaku chain --html report.html
+
+# シーケンス図をHTMLで出力
+idotaku sequence --html sequence.html
+
+# ライフスパン分析（使用回数順）
+idotaku lifeline --sort uses
+
+# HARファイルからレポート生成（Chrome DevTools / Burp Suite）
+idotaku import-har capture.har -o report.json
+
+# リスクスコアリング（スコア50以上のみ表示）
+idotaku score --min-score 50
+
+# criticalレベルのみ表示
+idotaku score --level critical
+
+# レポートの差分比較
+idotaku diff old_report.json new_report.json
+
+# 差分をJSONファイルに出力
+idotaku diff old.json new.json -o diff_result.json
+
+# 認証コンテキスト分析
+idotaku auth
+
+# CSV出力（IDOR候補）
+idotaku csv report.json -o idor.csv
+
+# CSV出力（フロー一覧）
+idotaku csv report.json -o flows.csv -m flows
+
+# SARIF出力（GitHub Code Scanning用）
+idotaku sarif report.json -o findings.sarif.json
 ```
 
 ---

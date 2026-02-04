@@ -7,6 +7,7 @@ from rich.console import Console
 from rich.panel import Panel
 
 from ..report import load_report
+from ..export import export_sequence_html
 
 console = Console()
 
@@ -14,7 +15,8 @@ console = Console()
 @click.command()
 @click.argument("report_file", default="id_tracker_report.json", type=click.Path(exists=True))
 @click.option("--limit", "-n", default=30, help="Max number of API calls to show")
-def sequence(report_file, limit):
+@click.option("--html", "-o", "html_output", default=None, help="Export to interactive HTML file")
+def sequence(report_file, limit, html_output):
     """Show API call sequence with parameter flow (horizontal timeline).
 
     Visualizes the time-ordered sequence of API calls and shows which
@@ -137,3 +139,13 @@ def sequence(report_file, limit):
 
     console.print()
     console.print(f"[dim]Showing {len(sorted_flows)} of {len(data.flows)} API calls[/dim]")
+
+    # HTML export
+    if html_output:
+        export_sequence_html(
+            html_output,
+            sorted_flows,
+            data.tracked_ids,
+            data.potential_idor,
+        )
+        console.print(f"\n[green]HTML exported to:[/green] {html_output}")
