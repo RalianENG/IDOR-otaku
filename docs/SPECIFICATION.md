@@ -1,14 +1,14 @@
-# IDOR-otaku (idotaku) 仕様書
+# IDOR-otaku (idotaku) Specification
 
-## 概要
+## Overview
 
-**idotaku** は、APIコールからIDの発生（Origin）と使用（Usage）を追跡し、IDOR（Insecure Direct Object Reference）脆弱性の候補を検出する脆弱性診断支援ツール。
+**idotaku** is a vulnerability assessment tool that tracks ID origin (Origin) and usage (Usage) from API calls to detect IDOR (Insecure Direct Object Reference) vulnerability candidates.
 
-mitmproxy のアドオンとして動作し、ブラウザとAPIサーバー間の通信を傍受・解析する。
+It operates as a mitmproxy addon, intercepting and analyzing traffic between the browser and API server.
 
 ---
 
-## アーキテクチャ
+## Architecture
 
 ```
 ┌─────────────┐     ┌─────────────┐     ┌─────────────┐
@@ -30,183 +30,183 @@ mitmproxy のアドオンとして動作し、ブラウザとAPIサーバー間�
 
 ---
 
-## プロジェクト構成
+## Project Structure
 
 ```
 idotaku/
-├── pyproject.toml          # パッケージ定義
-├── idotaku.example.yaml    # 設定ファイルテンプレート
+├── pyproject.toml          # Package definition
+├── idotaku.example.yaml    # Config file template
 ├── docs/
-│   ├── QUICKSTART.md       # クイックスタートガイド
-│   └── SPECIFICATION.md    # 本ドキュメント
+│   ├── QUICKSTART.md       # Quick start guide
+│   └── SPECIFICATION.md    # This document
 └── src/
     └── idotaku/
-        ├── __init__.py     # パッケージ初期化、バージョン定義
-        ├── tracker.py      # コアロジック（mitmproxyアドオン）
-        ├── config.py       # 設定ファイルローダー
-        ├── cli.py          # CLIエントリーポイント
-        ├── commands/       # サブコマンド群
-        │   ├── run.py      # プロキシ起動
-        │   ├── report.py   # サマリーレポート
-        │   ├── chain.py    # パラメータチェーン検出
-        │   ├── sequence.py # シーケンス表示
-        │   ├── lifeline.py # IDライフライン表示
-        │   └── interactive_cmd.py  # 対話モード
-        ├── export/         # HTMLエクスポート
-        │   ├── chain_exporter.py    # chainのHTML出力
-        │   └── sequence_exporter.py # sequenceのHTML出力
-        └── interactive.py  # 対話モードUI
+        ├── __init__.py     # Package init, version definition
+        ├── tracker.py      # Core logic (mitmproxy addon)
+        ├── config.py       # Config file loader
+        ├── cli.py          # CLI entry point
+        ├── commands/       # Subcommands
+        │   ├── run.py      # Proxy launch
+        │   ├── report.py   # Summary report
+        │   ├── chain.py    # Parameter chain detection
+        │   ├── sequence.py # Sequence display
+        │   ├── lifeline.py # ID lifeline display
+        │   └── interactive_cmd.py  # Interactive mode
+        ├── export/         # HTML export
+        │   ├── chain_exporter.py    # Chain HTML output
+        │   └── sequence_exporter.py # Sequence HTML output
+        └── interactive.py  # Interactive mode UI
 ```
 
 ---
 
-## コアロジック（tracker.py）
+## Core Logic (tracker.py)
 
-### データ構造
+### Data Structures
 
 ```python
 @dataclass
 class IDOccurrence:
-    """IDの出現1回分を表す"""
-    id_value: str      # ID値 (例: "12345", "uuid-xxx-xxx")
-    id_type: str       # 種別: "numeric" | "uuid" | "token"
-    location: str      # 出現場所: "url_path" | "query" | "body" | "header"
-    field_name: str    # フィールド名 (例: "user_id", "items[0].id")
-    url: str           # リクエストURL
-    method: str        # HTTPメソッド
-    timestamp: str     # ISO8601形式タイムスタンプ
+    """Represents a single occurrence of an ID"""
+    id_value: str      # ID value (e.g., "12345", "uuid-xxx-xxx")
+    id_type: str       # Type: "numeric" | "uuid" | "token"
+    location: str      # Location: "url_path" | "query" | "body" | "header"
+    field_name: str    # Field name (e.g., "user_id", "items[0].id")
+    url: str           # Request URL
+    method: str        # HTTP method
+    timestamp: str     # ISO8601 timestamp
     direction: str     # "request" | "response"
 
 @dataclass
 class TrackedID:
-    """追跡対象のID"""
-    value: str                       # ID値
-    id_type: str                     # 種別
-    first_seen: str                  # 最初に発見した時刻
-    origin: Optional[IDOccurrence]   # レスポンスで最初に出現した場所
-    usages: list[IDOccurrence]       # リクエストで使用された場所のリスト
+    """A tracked ID"""
+    value: str                       # ID value
+    id_type: str                     # Type
+    first_seen: str                  # First discovery time
+    origin: Optional[IDOccurrence]   # First occurrence in a response
+    usages: list[IDOccurrence]       # List of occurrences in requests
 
 @dataclass
 class FlowRecord:
-    """リクエスト-レスポンスのペア（1回の通信）"""
-    flow_id: str                     # mitmproxyが付与する一意ID
-    url: str                         # リクエストURL
-    method: str                      # HTTPメソッド
-    timestamp: str                   # ISO8601形式タイムスタンプ
-    request_ids: list[dict]          # リクエストで検出されたID一覧
-    response_ids: list[dict]         # レスポンスで検出されたID一覧
+    """A request-response pair (single communication)"""
+    flow_id: str                     # Unique ID assigned by mitmproxy
+    url: str                         # Request URL
+    method: str                      # HTTP method
+    timestamp: str                   # ISO8601 timestamp
+    request_ids: list[dict]          # IDs detected in request
+    response_ids: list[dict]         # IDs detected in response
 ```
 
-### ID検出パターン
+### ID Detection Patterns
 
-| 種別 | 正規表現 | 説明 |
-|------|----------|------|
+| Type | Regex | Description |
+|------|-------|-------------|
 | uuid | `[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}` | UUID v1-v5 |
-| numeric | `[1-9]\d{2,10}` | 3〜11桁の数値（100以上） |
-| token | `[A-Za-z0-9_-]{20,}` | 20文字以上の英数字トークン |
+| numeric | `[1-9]\d{2,10}` | 3-11 digit numbers (100 or greater) |
+| token | `[A-Za-z0-9_-]{20,}` | Alphanumeric tokens of 20+ characters |
 
-### 除外パターン
+### Exclusion Patterns
 
-| パターン | 説明 |
-|----------|------|
-| `^\d{10,13}$` | Unixタイムスタンプ（誤検出防止） |
-| `^\d+\.\d+\.\d+$` | バージョン番号 |
+| Pattern | Description |
+|---------|-------------|
+| `^\d{10,13}$` | Unix timestamps (false positive prevention) |
+| `^\d+\.\d+\.\d+$` | Version numbers |
 
-### ID追跡ロジック
+### ID Tracking Logic
 
 ```
-1. レスポンスでIDが出現
-   → TrackedID.origin に記録（最初の1回のみ）
-   → これが「IDの発生源」
+1. ID appears in response
+   → Recorded in TrackedID.origin (first occurrence only)
+   → This is the "ID origin"
 
-2. リクエストでIDが出現
-   → TrackedID.usages に追加
-   → これが「IDの使用」
+2. ID appears in request
+   → Added to TrackedID.usages
+   → This is the "ID usage"
 
-3. 終了時に分析
-   → usages あり && origin なし = IDOR候補
-   （リクエストで使われているが、レスポンスで発生していないID）
+3. Analysis at termination
+   → usages present && origin absent = IDOR candidate
+   (ID used in requests but never originated from a response)
 ```
 
 ---
 
-## IDOR検出ロジック
+## IDOR Detection Logic
 
-### 検出条件
+### Detection Criteria
 
 ```
 potential_idor = ID where:
-  - usages.length > 0  （リクエストで使われている）
-  - origin == null     （レスポンスで一度も発生していない）
+  - usages.length > 0  (used in requests)
+  - origin == null      (never appeared in any response)
 ```
 
-### 検出理由
+### Rationale
 
-1. **正規フロー**: ユーザーがAPIを使うと、まずレスポンスでIDを受け取り（origin）、それを使って後続リクエストを送る（usage）
+1. **Normal flow**: When a user interacts with an API, they first receive an ID in a response (origin), then use it in subsequent requests (usage)
 
-2. **IDOR候補**: リクエストで使われているが、レスポンスで発生していないIDは以下の可能性がある：
-   - ユーザーが手動でIDを推測・変更した
-   - 別セッションで取得したIDを使っている
-   - 列挙攻撃のターゲットになっている
+2. **IDOR candidate**: An ID used in requests but never seen in responses may indicate:
+   - The user manually guessed or modified the ID
+   - An ID obtained from a different session is being used
+   - The ID is a target of enumeration attacks
 
 ---
 
-## 設定ファイル（config.py）
+## Configuration File (config.py)
 
-### 検索順序
+### Search Order
 
-設定ファイルが明示的に指定されていない場合、以下の順序で自動検索される：
+When no config file is explicitly specified, the following paths are searched in order:
 
-1. `idotaku.yaml`（カレントディレクトリ）
+1. `idotaku.yaml` (current directory)
 2. `idotaku.yml`
 3. `.idotaku.yaml`
 4. `.idotaku.yml`
 
-### 設定ファイル形式
+### Config File Format
 
 ```yaml
 idotaku:
-  # 出力ファイルパス
+  # Output file path
   output: id_tracker_report.json
 
-  # 数値IDの最小値（これより小さい数値は無視）
+  # Minimum value for numeric IDs (smaller numbers are ignored)
   min_numeric: 100
 
-  # ID検出パターン（名前: 正規表現）
+  # ID detection patterns (name: regex)
   patterns:
     uuid: "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
     numeric: "[1-9]\\d{2,10}"
     token: "[A-Za-z0-9_-]{20,}"
-    # カスタムパターン例：
+    # Custom pattern example:
     # order_id: "ORD-[A-Z]{2}-\\d{8}"
 
-  # 除外パターン（ID候補から除外する正規表現）
+  # Exclusion patterns (regex to exclude from ID candidates)
   exclude_patterns:
     - "^\\d{10,13}$"      # Unix timestamp
     - "^\\d+\\.\\d+\\.\\d+$"  # Version numbers
 
-  # ID抽出対象のContent-Type
+  # Content-Types to extract IDs from
   trackable_content_types:
     - application/json
     - application/x-www-form-urlencoded
     - text/html
     - text/plain
 
-  # 追加で除外するヘッダー（デフォルトに追加）
+  # Additional headers to ignore (appended to defaults)
   extra_ignore_headers: []
     # - x-internal-trace-id
 
-  # ターゲットドメイン（ホワイトリスト、空なら全ドメイン）
+  # Target domains (allowlist, empty means all domains)
   # target_domains:
   #   - api.example.com
   #   - "*.example.com"
 
-  # 除外ドメイン（ブラックリスト、target_domainsより優先）
+  # Excluded domains (blocklist, takes priority over target_domains)
   # exclude_domains:
   #   - analytics.example.com
   #   - "*.tracking.com"
 
-  # 除外拡張子（静的ファイル）
+  # Excluded extensions (static files)
   # exclude_extensions:
   #   - ".css"
   #   - ".js"
@@ -214,40 +214,40 @@ idotaku:
   #   - ".jpg"
 ```
 
-### 設定項目一覧
+### Configuration Options
 
-| 項目 | 型 | デフォルト | 説明 |
-|------|-----|------------|------|
-| `output` | string | `id_tracker_report.json` | 出力ファイルパス |
-| `min_numeric` | int | `100` | 数値IDの最小値 |
-| `patterns` | dict | uuid/numeric/token | ID検出パターン |
-| `exclude_patterns` | list | timestamp/version | 除外パターン |
-| `trackable_content_types` | list | json/form/html/text | 解析対象Content-Type |
-| `ignore_headers` | list | (デフォルトセット) | 除外ヘッダー（完全上書き） |
-| `extra_ignore_headers` | list | `[]` | 追加除外ヘッダー |
-| `target_domains` | list | `[]`（全ドメイン） | 追跡対象ドメイン（ホワイトリスト） |
-| `exclude_domains` | list | `[]` | 除外ドメイン（ブラックリスト、優先） |
-| `exclude_extensions` | list | 静的ファイル拡張子 | 除外する拡張子（.css, .js, .png 等） |
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `output` | string | `id_tracker_report.json` | Output file path |
+| `min_numeric` | int | `100` | Minimum value for numeric IDs |
+| `patterns` | dict | uuid/numeric/token | ID detection patterns |
+| `exclude_patterns` | list | timestamp/version | Exclusion patterns |
+| `trackable_content_types` | list | json/form/html/text | Content-Types to analyze |
+| `ignore_headers` | list | (default set) | Headers to ignore (full override) |
+| `extra_ignore_headers` | list | `[]` | Additional headers to ignore |
+| `target_domains` | list | `[]` (all domains) | Target domains (allowlist) |
+| `exclude_domains` | list | `[]` | Excluded domains (blocklist, takes priority) |
+| `exclude_extensions` | list | static file extensions | Extensions to exclude (.css, .js, .png, etc.) |
 
-### デフォルト除外拡張子
+### Default Excluded Extensions
 
-静的ファイルを自動的に除外:
-- **スタイル・スクリプト**: `.css`, `.js`, `.map`
-- **画像**: `.png`, `.jpg`, `.jpeg`, `.gif`, `.svg`, `.ico`, `.webp`, `.bmp`
-- **フォント**: `.woff`, `.woff2`, `.ttf`, `.eot`, `.otf`
-- **メディア**: `.mp3`, `.mp4`, `.webm`, `.ogg`, `.wav`
-- **その他**: `.pdf`, `.zip`, `.gz`
+Static files are automatically excluded:
+- **Styles & scripts**: `.css`, `.js`, `.map`
+- **Images**: `.png`, `.jpg`, `.jpeg`, `.gif`, `.svg`, `.ico`, `.webp`, `.bmp`
+- **Fonts**: `.woff`, `.woff2`, `.ttf`, `.eot`, `.otf`
+- **Media**: `.mp3`, `.mp4`, `.webm`, `.ogg`, `.wav`
+- **Other**: `.pdf`, `.zip`, `.gz`
 
-### デフォルト除外ヘッダー
+### Default Ignored Headers
 
-- **メタデータ系**: `content-type`, `content-length`, `accept`, `user-agent`, `host`, `origin`, `referer`
-- **キャッシュ系**: `cache-control`, `etag`, `last-modified`, `if-none-match`
-- **CORS系**: `access-control-allow-*`
-- **その他**: `date`, `server`, `sec-ch-ua`, `sec-fetch-*`
+- **Metadata**: `content-type`, `content-length`, `accept`, `user-agent`, `host`, `origin`, `referer`
+- **Cache**: `cache-control`, `etag`, `last-modified`, `if-none-match`
+- **CORS**: `access-control-allow-*`
+- **Other**: `date`, `server`, `sec-ch-ua`, `sec-fetch-*`
 
 ---
 
-## 出力フォーマット（JSON）
+## Output Format (JSON)
 
 ### id_tracker_report.json
 
@@ -297,161 +297,161 @@ idotaku:
 }
 ```
 
-### レポート構造
+### Report Structure
 
-| セクション | 説明 |
-|------------|------|
-| `summary` | 統計情報（ユニークID数、フロー数など） |
-| `flows` | 通信単位のID一覧 |
-| `tracked_ids` | ID単位の詳細（どこで発生し、どこで使われたか） |
-| `potential_idor` | IDOR脆弱性候補のリスト |
+| Section | Description |
+|---------|-------------|
+| `summary` | Statistics (unique ID count, flow count, etc.) |
+| `flows` | IDs listed per communication unit |
+| `tracked_ids` | Per-ID details (where it originated and where it was used) |
+| `potential_idor` | List of IDOR vulnerability candidates |
 
 ---
 
-## CLIコマンド詳細（cli.py）
+## CLI Command Details (cli.py)
 
-### メインコマンド
+### Main Command
 
 ```bash
 idotaku [OPTIONS]
 ```
 
-| オプション | 短縮 | デフォルト | 説明 |
-|------------|------|------------|------|
-| `--port` | `-p` | 8080 | プロキシポート |
-| `--web-port` | `-w` | 8081 | Web UIポート |
-| `--output` | `-o` | `id_tracker_report.json` | 出力ファイル |
-| `--min-numeric` | | 100 | 数値IDの最小値 |
-| `--no-browser` | | false | ブラウザ自動起動を無効化 |
-| `--browser` | | auto | 使用ブラウザ (chrome/edge/firefox/auto) |
-| `--config` | `-c` | なし | 設定ファイルパス |
-| `--interactive` | `-i` | false | 対話モードで起動 |
+| Option | Short | Default | Description |
+|--------|-------|---------|-------------|
+| `--port` | `-p` | 8080 | Proxy port |
+| `--web-port` | `-w` | 8081 | Web UI port |
+| `--output` | `-o` | `id_tracker_report.json` | Output file |
+| `--min-numeric` | | 100 | Minimum value for numeric IDs |
+| `--no-browser` | | false | Disable automatic browser launch |
+| `--browser` | | auto | Browser to use (chrome/edge/firefox/auto) |
+| `--config` | `-c` | none | Config file path |
+| `--interactive` | `-i` | false | Launch in interactive mode |
 
-### report - サマリー表示
+### report - Summary Display
 
 ```bash
 idotaku report [REPORT_FILE]
 ```
 
-### chain - パラメータチェーン検出
+### chain - Parameter Chain Detection
 
 ```bash
 idotaku chain [REPORT_FILE] [OPTIONS]
 ```
 
-| オプション | 説明 |
-|------------|------|
-| `--top N` | 表示するチェーン数（デフォルト: 10） |
-| `--min-depth N` | 最小深さ（デフォルト: 2） |
-| `--html FILE` | インタラクティブHTMLとしてエクスポート |
-| `--domains PATTERNS` | ドメインでフィルタ（カンマ区切り、ワイルドカード対応） |
+| Option | Description |
+|--------|-------------|
+| `--top N` | Number of chains to display (default: 10) |
+| `--min-depth N` | Minimum depth (default: 2) |
+| `--html FILE` | Export as interactive HTML |
+| `--domains PATTERNS` | Filter by domains (comma-separated, wildcards supported) |
 
-**ドメインフィルタ例**:
+**Domain filter examples**:
 ```bash
-# 特定ドメインのみ
+# Specific domain only
 idotaku chain --domains "api.example.com"
 
-# 複数ドメイン（ワイルドカード対応）
+# Multiple domains (with wildcards)
 idotaku chain --domains "api.example.com,*.internal.com"
 ```
 
-**チェーン検出のアルゴリズム**:
-1. Flow間の依存関係をグラフ化（レスポンスのID → リクエストで使用）
-2. ルートノード（依存先がないFlow）を特定
-3. 各ルートからDFSでツリーを構築
-4. スコア = 深さ × 100 + ノード数
+**Chain detection algorithm**:
+1. Build a dependency graph between flows (response ID → used in request)
+2. Identify root nodes (flows with no dependencies)
+3. Construct trees via DFS from each root
+4. Score = depth × 100 + node count
 
-**サイクル検出**:
-- APIパターン（メソッド + 正規化パス）でサイクルを検出
-- 例: `GET /users/123` と `GET /users/456` は同じパターン
-- サイクル検出時は参照ノードを返し、子ノードは元ノードにdefer
+**Cycle detection**:
+- Cycles are detected by API pattern (method + normalized path)
+- Example: `GET /users/123` and `GET /users/456` share the same pattern
+- When a cycle is detected, a reference node is returned and child nodes are deferred to the original node
 
-### sequence - シーケンス表示
+### sequence - Sequence Display
 
 ```bash
 idotaku sequence [REPORT_FILE] [OPTIONS]
 ```
 
-| オプション | 説明 |
-|------------|------|
-| `--limit N` | 表示するAPIコール数（デフォルト: 30） |
-| `--html FILE` | インタラクティブHTMLとしてエクスポート |
+| Option | Description |
+|--------|-------------|
+| `--limit N` | Number of API calls to display (default: 30) |
+| `--html FILE` | Export as interactive HTML |
 
-### lifeline - IDライフライン表示
+### lifeline - ID Lifeline Display
 
 ```bash
 idotaku lifeline [REPORT_FILE] [OPTIONS]
 ```
 
-| オプション | 説明 |
-|------------|------|
-| `--min-uses N` | 最低使用回数（デフォルト: 1） |
-| `--sort TYPE` | ソート順: lifespan/uses/first |
+| Option | Description |
+|--------|-------------|
+| `--min-uses N` | Minimum usage count (default: 1) |
+| `--sort TYPE` | Sort order: lifespan/uses/first |
 
-### version - バージョン表示
+### version - Version Display
 
 ```bash
 idotaku version
 ```
 
-### interactive - 対話モード
+### interactive - Interactive Mode
 
 ```bash
 idotaku interactive
-# または
+# or
 idotaku -i
 ```
 
-**機能**:
-- 矢印キーでコマンド選択
-- レポートファイルの自動検出・選択
-- ドメインフィルタのチェックボックス選択
-- Enterでスキップ可能（デフォルト値使用）
+**Features**:
+- Select commands with arrow keys
+- Auto-detect and select report files
+- Checkbox selection for domain filters
+- Press Enter to skip (uses default values)
 
-**対象ユーザー**:
-- 初心者: ガイド付きでコマンドを学べる
-- シニア: Enterで素早くスキップ可能
-
----
-
-## 依存関係
-
-| パッケージ | バージョン | 用途 |
-|------------|------------|------|
-| mitmproxy | >=10.0.0 | プロキシエンジン |
-| click | >=8.0.0 | CLIフレームワーク |
-| rich | >=13.0.0 | ターミナル出力装飾 |
-| questionary | >=2.0.0 | 対話式プロンプト |
+**Target users**:
+- Beginners: Learn commands with guided menus
+- Advanced: Quickly skip with Enter
 
 ---
 
-## 制限事項
+## Dependencies
 
-1. **WebSocket非対応**: HTTP/HTTPSのみ
-2. **バイナリボディ非対応**: JSON/テキストのみ解析
-3. **GraphQL非対応**: クエリ構造は解析しない（JSON bodyとしては処理）
-4. **認証トークンの誤検出**: 長いトークンがIDとして検出される場合あり
+| Package | Version | Purpose |
+|---------|---------|---------|
+| mitmproxy | >=10.0.0 | Proxy engine |
+| click | >=8.0.0 | CLI framework |
+| rich | >=13.0.0 | Terminal output formatting |
+| questionary | >=2.0.0 | Interactive prompts |
 
 ---
 
-## 今後の拡張候補
+## Limitations
 
-### 実装済み
+1. **No WebSocket support**: HTTP/HTTPS only
+2. **No binary body support**: Only JSON/text is analyzed
+3. **No GraphQL support**: Query structure is not parsed (processed as JSON body)
+4. **Auth token false positives**: Long tokens may be detected as IDs
 
-- [x] ドメインフィルタリング
-- [x] カスタムIDパターン定義
-- [x] パラメータチェーン検出・可視化
-- [x] シーケンス表示
-- [x] IDライフライン表示
-- [x] 対話式CLI（インタラクティブモード）
-- [x] chainコマンドのドメインフィルタオプション
-- [x] chain / sequence のインタラクティブHTMLエクスポート
+---
 
-### 未実装
+## Future Enhancements
 
-- [ ] リアルタイムWeb UI
-- [ ] ID置換テスト（自動リプレイ）
-- [ ] HAR形式エクスポート
-- [ ] GraphQL対応
-- [ ] WebSocket対応
-- [ ] レスポンスステータスコードの記録
+### Implemented
+
+- [x] Domain filtering
+- [x] Custom ID pattern definitions
+- [x] Parameter chain detection and visualization
+- [x] Sequence display
+- [x] ID lifeline display
+- [x] Interactive CLI (interactive mode)
+- [x] Domain filter option for chain command
+- [x] Interactive HTML export for chain / sequence
+
+### Not Yet Implemented
+
+- [ ] Real-time Web UI
+- [ ] ID substitution testing (automatic replay)
+- [ ] HAR format export
+- [ ] GraphQL support
+- [ ] WebSocket support
+- [ ] Response status code recording

@@ -1,13 +1,13 @@
-# idotaku クイックスタート
+# idotaku Quick Start
 
-## インストール
+## Installation
 
 ```bash
-# リポジトリをクローン
+# Clone the repository
 git clone https://github.com/RalianENG/IDOR-otaku.git
 cd idotaku
 
-# 仮想環境作成（推奨）
+# Create a virtual environment (recommended)
 python -m venv .venv
 
 # Windows
@@ -16,246 +16,246 @@ python -m venv .venv
 # macOS/Linux
 source .venv/bin/activate
 
-# インストール
+# Install
 pip install -e .
 ```
 
 ---
 
-## 基本的な使い方
+## Basic Usage
 
-### 1. 起動（対話モード - 初心者向け）
+### 1. Launch (Interactive Mode - Recommended for Beginners)
 
 ```bash
 idotaku -i
 ```
 
-矢印キーでコマンドを選択できるインタラクティブモードが起動します。
-ファイル選択やドメインフィルタも対話形式で設定可能。
+Starts an interactive mode where you can select commands with arrow keys.
+File selection and domain filters can also be configured interactively.
 
-### 1. 起動（プロキシモード）
+### 2. Launch (Proxy Mode)
 
 ```bash
 idotaku
 ```
 
-これだけで:
-- mitmproxy が起動（ポート8080）
-- Web UI が起動（http://127.0.0.1:8081）
-- ブラウザが自動起動（プロキシ設定済み）
+This single command:
+- Starts mitmproxy (port 8080)
+- Starts the Web UI (http://127.0.0.1:8081)
+- Auto-launches a browser (with proxy configured)
 
-### 2. テスト対象を操作
+### 3. Interact with the Target
 
-起動したブラウザでテスト対象のWebアプリを操作します。
-APIコールが自動的に記録されます。
+Use the launched browser to interact with the target web application.
+API calls are automatically recorded.
 
-### 3. 終了してレポート生成
+### 4. Stop and Generate Report
 
-`Ctrl+C` で終了すると `id_tracker_report.json` が生成されます。
+Press `Ctrl+C` to stop. An `id_tracker_report.json` file will be generated.
 
-### 4. レポート確認
+### 5. Analyze the Report
 
 ```bash
-# サマリー表示（IDOR候補の確認）
+# View summary (check IDOR candidates)
 idotaku report
 
-# リスクスコアリング（IDOR候補を重要度順に表示）
+# Risk scoring (show IDOR candidates by severity)
 idotaku score
 
-# パラメータチェーン検出（ビジネスフロー発見）
+# Detect parameter chains (discover business flows)
 idotaku chain
 
-# 特定ドメインのみ分析（ノイズ除去）
+# Filter by specific domains (reduce noise)
 idotaku chain --domains "api.example.com,*.internal.com"
 
-# チェーンをHTMLでインタラクティブに可視化
+# Visualize chains as interactive HTML
 idotaku chain --html chain_report.html
 
-# APIシーケンス図をHTML出力（IDハイライト付き）
+# Export API sequence diagram as HTML (with ID highlighting)
 idotaku sequence --html sequence_report.html
 
-# パラメータのライフスパン分析
+# Parameter lifespan analysis
 idotaku lifeline
 
-# 認証コンテキスト分析（クロスユーザーアクセス検出）
+# Auth context analysis (detect cross-user access)
 idotaku auth
 ```
 
 ---
 
-## コマンド早見表
+## Command Reference
 
-### 基本
+### Basic
 
-| コマンド | 説明 |
-|----------|------|
-| `idotaku -i` | 対話モード（メニュー選択式） |
-| `idotaku` | プロキシ起動 |
+| Command | Description |
+|---------|-------------|
+| `idotaku -i` | Interactive mode (menu-driven) |
+| `idotaku` | Start proxy |
 
-### 分析
+### Analysis
 
-| コマンド | 説明 |
-|----------|------|
-| `idotaku report` | IDOR検出レポートのサマリー表示 |
-| `idotaku score` | IDOR候補のリスクスコアリング（critical/high/medium/low） |
-| `idotaku chain` | パラメータチェーン検出・ランキング（`--html` でHTML出力） |
-| `idotaku sequence` | APIシーケンス図（`--html` でHTML出力、IDハイライト付き） |
-| `idotaku lifeline` | パラメータのライフスパン分析 |
-| `idotaku auth` | 認証コンテキスト分析（クロスユーザーアクセス検出） |
-| `idotaku diff A.json B.json` | 2つのレポートの差分比較 |
+| Command | Description |
+|---------|-------------|
+| `idotaku report` | View IDOR detection report summary |
+| `idotaku score` | Risk-score IDOR candidates (critical/high/medium/low) |
+| `idotaku chain` | Detect and rank parameter chains (`--html` for HTML export) |
+| `idotaku sequence` | API sequence diagram (`--html` for HTML export with ID highlighting) |
+| `idotaku lifeline` | Parameter lifespan analysis |
+| `idotaku auth` | Auth context analysis (cross-user access detection) |
+| `idotaku diff A.json B.json` | Compare two reports |
 
-### インポート・エクスポート
+### Import & Export
 
-| コマンド | 説明 |
-|----------|------|
-| `idotaku import-har file.har` | HARファイルからレポート生成 |
-| `idotaku csv report.json` | IDOR候補をCSV出力（`-m flows` でフロー一覧） |
-| `idotaku sarif report.json` | SARIF 2.1.0形式で出力（GitHub Code Scanning対応） |
+| Command | Description |
+|---------|-------------|
+| `idotaku import-har file.har` | Generate report from HAR file |
+| `idotaku csv report.json` | Export IDOR candidates to CSV (`-m flows` for flow list) |
+| `idotaku sarif report.json` | Export to SARIF 2.1.0 (GitHub Code Scanning compatible) |
 
-詳細は [SPECIFICATION.md](./SPECIFICATION.md) 参照
+See [SPECIFICATION.md](./SPECIFICATION.md) for details.
 
 ---
 
-## 出力の見方
+## Understanding the Output
 
-### report - サマリー表示
+### report - Summary
 
 ```
 === ID Tracker Summary ===
 Unique IDs: 15
-IDs with Origin: 10      ← レスポンスで発生したID
-IDs with Usage: 8        ← リクエストで使用されたID
-Total Flows: 25          ← 記録されたAPI呼び出し数
+IDs with Origin: 10      <- IDs originating from responses
+IDs with Usage: 8        <- IDs used in requests
+Total Flows: 25          <- Number of recorded API calls
 
-⚠ Potential IDOR: 3      ← IDOR候補（要確認）
+⚠ Potential IDOR: 3      <- IDOR candidates (requires review)
 ```
 
-- **Origin**: レスポンスでIDが最初に出現した場所（正規の発生源）
-- **Usage**: リクエストでIDが使用された場所
-- **IDOR候補**: Usageはあるが Originがない = どこから来たか不明なID
+- **Origin**: Where an ID first appeared in a response (legitimate source)
+- **Usage**: Where an ID was used in a request
+- **IDOR candidate**: Has Usage but no Origin = unknown source of ID
 
-### chain - パラメータチェーン
+### chain - Parameter Chains
 
 ```
-#1 [Score: 502] 深さ5 / 8ノード
+#1 [Score: 502] Depth 5 / 8 nodes
 └── [#1] GET /api/auth/login
     ├── via: user_id, session_token
     ├── [#2] GET /api/users/{id}
     │   ├── via: org_id
     │   ├── [#3] GET /api/orgs/{id}
     │   │   └── ...
-    │   └── ↩ [#1] via org_id (continues below)  ← サイクル参照
+    │   └── ↩ [#1] via org_id (continues below)  <- Cycle reference
     └── [#4] GET /api/dashboard
         └── ...
 ```
 
-- `[#N]`: ノード番号（API呼び出しの識別子）
-- `via: xxx`: このAPIを呼ぶために使われたパラメータ
-- `↩ [#N]`: サイクル参照（同じAPIパターンに戻った）
-- `(continues below)`: サイクル先の子ノードは親にぶら下がる
+- `[#N]`: Node number (API call identifier)
+- `via: xxx`: Parameters used to make this API call
+- `↩ [#N]`: Cycle reference (returns to the same API pattern)
+- `(continues below)`: Child nodes of the cycle target are deferred to the parent
 
-**スコアの意味**:
-- `深さ × 100 + ノード数 × 1`
-- 深いチェーン = 複雑なビジネスフロー = 重点的にテストすべき箇所
+**Score meaning**:
+- `depth × 100 + node_count × 1`
+- Deeper chains = more complex business flows = areas that need thorough testing
 
-### HTML出力
+### HTML Output
 
-`chain` と `sequence` コマンドは `--html` オプションでインタラクティブなHTMLレポートを生成できます:
+The `chain` and `sequence` commands can generate interactive HTML reports with the `--html` option:
 
 ```bash
-# チェーンHTMLレポート（カード型ツリー + コネクタライン）
+# Chain HTML report (card-based tree + connector lines)
 idotaku chain --html chain_report.html
 
-# シーケンスHTMLレポート（UMLシーケンス図 + IDハイライト）
+# Sequence HTML report (UML sequence diagram + ID highlighting)
 idotaku sequence --html sequence_report.html
 ```
 
-- **chain HTML**: パラメータチェーンをカード型ノードで表示。展開/折りたたみ、via パラメータ表示、Consumes/Producesチップ
-- **sequence HTML**: APIコールをシーケンス図で表示。IDチップをクリックすると同じIDの全出現箇所がハイライト。IDOR候補は赤枠で警告
+- **chain HTML**: Displays parameter chains as card-based nodes. Expand/collapse, via-parameter display, Consumes/Produces chips
+- **sequence HTML**: Displays API calls as a sequence diagram. Click ID chips to highlight all occurrences. IDOR candidates shown with red warning badges
 
 ---
 
-## よく使うオプション
+## Common Options
 
 ```bash
-# 対話モード（おすすめ）
+# Interactive mode (recommended)
 idotaku -i
 
-# ポート変更
+# Change port
 idotaku --port 9090
 
-# 出力ファイル指定
+# Specify output file
 idotaku --output result.json
 
-# ブラウザ自動起動なし
+# Disable auto browser launch
 idotaku --no-browser
 
-# 特定ブラウザ指定
+# Specify browser
 idotaku --browser chrome
 
-# 設定ファイル指定
+# Specify config file
 idotaku --config ./my-config.yaml
 idotaku -c idotaku.yaml
 
-# チェーン分析（ドメインフィルタ）
+# Chain analysis (domain filter)
 idotaku chain --domains "api.example.com"
 
-# チェーンをHTMLで出力
+# Export chain as HTML
 idotaku chain --html report.html
 
-# シーケンス図をHTMLで出力
+# Export sequence diagram as HTML
 idotaku sequence --html sequence.html
 
-# ライフスパン分析（使用回数順）
+# Lifespan analysis (sort by usage count)
 idotaku lifeline --sort uses
 
-# HARファイルからレポート生成（Chrome DevTools / Burp Suite）
+# Generate report from HAR file (Chrome DevTools / Burp Suite)
 idotaku import-har capture.har -o report.json
 
-# リスクスコアリング（スコア50以上のみ表示）
+# Risk scoring (show only scores 50+)
 idotaku score --min-score 50
 
-# criticalレベルのみ表示
+# Show only critical level
 idotaku score --level critical
 
-# レポートの差分比較
+# Compare two reports
 idotaku diff old_report.json new_report.json
 
-# 差分をJSONファイルに出力
+# Export diff as JSON
 idotaku diff old.json new.json -o diff_result.json
 
-# 認証コンテキスト分析
+# Auth context analysis
 idotaku auth
 
-# CSV出力（IDOR候補）
+# CSV export (IDOR candidates)
 idotaku csv report.json -o idor.csv
 
-# CSV出力（フロー一覧）
+# CSV export (flow list)
 idotaku csv report.json -o flows.csv -m flows
 
-# SARIF出力（GitHub Code Scanning用）
+# SARIF export (for GitHub Code Scanning)
 idotaku sarif report.json -o findings.sarif.json
 ```
 
 ---
 
-## 設定ファイル
+## Configuration File
 
-カスタマイズしたい場合は設定ファイルを作成:
+To customize settings, create a config file:
 
 ```bash
 cp idotaku.example.yaml idotaku.yaml
 ```
 
-または、任意の場所の設定ファイルを指定:
+Or specify a config file at any location:
 
 ```bash
 idotaku -c /path/to/config.yaml
 ```
 
-設定ファイルが指定されていない場合、カレントディレクトリの `idotaku.yaml` または `.idotaku.yaml` を自動検索します。
+If no config file is specified, `idotaku.yaml` or `.idotaku.yaml` in the current directory will be auto-detected.
 
-### 設定例: カスタムIDパターン追加
+### Example: Add Custom ID Patterns
 
 ```yaml
 idotaku:
@@ -264,7 +264,7 @@ idotaku:
     session: "sess_[a-zA-Z0-9]{32}"
 ```
 
-### 設定例: 特定ドメインのみ追跡（ホワイトリスト）
+### Example: Track Specific Domains Only (Allowlist)
 
 ```yaml
 idotaku:
@@ -273,7 +273,7 @@ idotaku:
     - "*.example.com"
 ```
 
-### 設定例: 特定ドメインを除外（ブラックリスト）
+### Example: Exclude Specific Domains (Blocklist)
 
 ```yaml
 idotaku:
@@ -283,9 +283,9 @@ idotaku:
     - analytics.example.com
 ```
 
-ブラックリストはホワイトリストより優先されます。
+The blocklist takes priority over the allowlist.
 
-### 設定例: 静的ファイル除外のカスタマイズ
+### Example: Customize Static File Exclusions
 
 ```yaml
 idotaku:
@@ -297,33 +297,33 @@ idotaku:
     - ".svg"
 ```
 
-デフォルトでは一般的な静的ファイル（CSS, JS, 画像, フォント等）が除外されます。
+By default, common static files (CSS, JS, images, fonts, etc.) are excluded.
 
-詳細は [SPECIFICATION.md](./SPECIFICATION.md) 参照
+See [SPECIFICATION.md](./SPECIFICATION.md) for details.
 
 ---
 
-## トラブルシューティング
+## Troubleshooting
 
-### mitmweb が見つからない
+### mitmweb not found
 
 ```bash
 pip install mitmproxy
 ```
 
-### HTTPS通信が見れない
+### Cannot see HTTPS traffic
 
-ブラウザで http://mitm.it にアクセスし、CA証明書をインストールしてください。
-（`idotaku` コマンドで起動したブラウザは `--ignore-certificate-errors` 付きなので不要）
+Visit http://mitm.it in the browser and install the CA certificate.
+(Browsers launched by the `idotaku` command have `--ignore-certificate-errors` enabled, so this is not needed.)
 
-### レポートが空
+### Empty report
 
-- プロキシ設定が正しいか確認
-- テスト対象がAPIを呼んでいるか確認（Web UIで通信を確認）
+- Verify proxy settings are correct
+- Confirm the target application is making API calls (check traffic in the Web UI)
 
 ---
 
-## 次のステップ
+## Next Steps
 
-- [SPECIFICATION.md](./SPECIFICATION.md) - 詳細仕様・全コマンドオプション
-- 設定ファイルの全オプションは `idotaku.example.yaml` を参照
+- [SPECIFICATION.md](./SPECIFICATION.md) - Full specification and all command options
+- See `idotaku.example.yaml` for all configuration options

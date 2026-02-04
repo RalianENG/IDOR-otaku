@@ -72,8 +72,8 @@ idotaku sequence id_tracker_report.json --html sequence.html
 
 ## ドキュメント
 
-- [クイックスタートガイド](QUICKSTART.md)
-- [仕様書](SPECIFICATION.md)
+- [Quick Start Guide](QUICKSTART.md) (English)
+- [Specification](SPECIFICATION.md) (English)
 
 ## コントリビュート
 

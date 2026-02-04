@@ -111,9 +111,9 @@ diff = diff_reports(load_report("old.json"), load_report("new.json"))
 
 ## Documentation
 
-- **[日本語ドキュメント / Japanese README](docs/README_ja.md)**
-- [Quick Start Guide (Japanese)](docs/QUICKSTART.md)
-- [Specification (Japanese)](docs/SPECIFICATION.md)
+- [Quick Start Guide](docs/QUICKSTART.md)
+- [Specification](docs/SPECIFICATION.md)
+- [日本語 / Japanese README](docs/README_ja.md)
 
 ## Contributing
 
