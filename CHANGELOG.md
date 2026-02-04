@@ -20,6 +20,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 - Interactive mode now includes all new commands (score, diff, auth, csv, sarif, import-har)
 - Tracker now captures authentication context (Authorization header, session cookies) per flow
+- Documentation translated to English (QUICKSTART.md, SPECIFICATION.md)
+
+### Fixed
+
+- Use defensive `dict.get()` access across all modules to prevent KeyError on malformed report data
+- Add error handling for HAR file and report file loading with user-friendly error messages
+- Add guard clauses for empty ID values in lifeline, sequence, and auth analysis
+- Resolve ruff lint errors (unused imports, unused variables, ambiguous variable names)
 
 ## [0.1.0] - 2024
 

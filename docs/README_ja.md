@@ -58,17 +58,33 @@ idotaku
 idotaku report id_tracker_report.json
 idotaku chain id_tracker_report.json --html chain.html
 idotaku sequence id_tracker_report.json --html sequence.html
+
+# HARファイルからレポート生成（Chrome DevTools / Burp Suite）
+idotaku import-har capture.har -o report.json
 ```
 
 ## コマンド一覧
 
+### 分析
+
 | コマンド | 説明 |
 |----------|------|
-| `interactive` | 対話モード（メニュー選択式） |
-| `report` | IDトラッキングレポートのサマリー表示 |
+| `report` | IDOR検出レポートのサマリー表示 |
 | `chain` | パラメータチェーン検出（`--domains` フィルタ、`--html` エクスポート対応） |
 | `sequence` | パラメータフロー付きAPIシーケンス表示（`--html` エクスポート対応） |
 | `lifeline` | パラメータのライフスパン表示 |
+| `score` | IDOR候補のリスクスコアリング（critical / high / medium / low） |
+| `auth` | 認証コンテキスト分析（クロスユーザーアクセス検出） |
+| `diff` | 2つのレポートの差分比較 |
+| `interactive` | 対話モード（メニュー選択式） |
+
+### インポート & エクスポート
+
+| コマンド | 説明 |
+|----------|------|
+| `import-har` | HARファイルをインポートしてレポート生成 |
+| `csv` | IDOR候補またはフロー一覧をCSVエクスポート |
+| `sarif` | SARIF 2.1.0形式でエクスポート（GitHub Code Scanning対応） |
 
 ## ドキュメント
 

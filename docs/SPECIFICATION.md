@@ -38,24 +38,42 @@ idotaku/
 ├── idotaku.example.yaml    # Config file template
 ├── docs/
 │   ├── QUICKSTART.md       # Quick start guide
-│   └── SPECIFICATION.md    # This document
+│   ├── SPECIFICATION.md    # This document
+│   └── README_ja.md        # Japanese README
 └── src/
     └── idotaku/
         ├── __init__.py     # Package init, version definition
         ├── tracker.py      # Core logic (mitmproxy addon)
         ├── config.py       # Config file loader
         ├── cli.py          # CLI entry point
+        ├── import_har.py   # HAR file import
+        ├── interactive.py  # Interactive mode UI
+        ├── browser.py      # Browser launcher
         ├── commands/       # Subcommands
         │   ├── run.py      # Proxy launch
         │   ├── report.py   # Summary report
         │   ├── chain.py    # Parameter chain detection
         │   ├── sequence.py # Sequence display
         │   ├── lifeline.py # ID lifeline display
+        │   ├── score_cmd.py      # Risk scoring
+        │   ├── har_cmd.py        # HAR import command
+        │   ├── diff_cmd.py       # Report diff
+        │   ├── auth_cmd.py       # Auth context analysis
+        │   ├── csv_cmd.py        # CSV export
+        │   ├── sarif_cmd.py      # SARIF export
         │   └── interactive_cmd.py  # Interactive mode
-        ├── export/         # HTML export
+        ├── export/         # Export modules
         │   ├── chain_exporter.py    # Chain HTML output
-        │   └── sequence_exporter.py # Sequence HTML output
-        └── interactive.py  # Interactive mode UI
+        │   ├── sequence_exporter.py # Sequence HTML output
+        │   ├── csv_exporter.py      # CSV output
+        │   └── sarif_exporter.py    # SARIF output
+        └── report/         # Report analysis
+            ├── models.py       # Data models
+            ├── loader.py       # Report loader
+            ├── analysis.py     # Chain / graph analysis
+            ├── scoring.py      # Risk scoring logic
+            ├── diff.py         # Report diffing
+            └── auth_analysis.py  # Auth context analysis
 ```
 
 ---
@@ -388,6 +406,87 @@ idotaku lifeline [REPORT_FILE] [OPTIONS]
 | `--min-uses N` | Minimum usage count (default: 1) |
 | `--sort TYPE` | Sort order: lifespan/uses/first |
 
+### score - Risk Scoring
+
+```bash
+idotaku score [REPORT_FILE] [OPTIONS]
+```
+
+| Option | Short | Default | Description |
+|--------|-------|---------|-------------|
+| `--min-score` | | 0 | Minimum risk score to show (0-100) |
+| `--level` | `-l` | none | Filter by risk level (critical/high/medium/low) |
+
+**Scoring factors**:
+- HTTP method weight (DELETE/PUT > POST > PATCH > GET)
+- Parameter location (url_path > query > body > header)
+- ID type (numeric > uuid > token)
+- Usage count (more usages = higher risk)
+
+**Risk levels**:
+| Level | Score Range |
+|-------|-------------|
+| critical | 80-100 |
+| high | 60-79 |
+| medium | 40-59 |
+| low | 0-39 |
+
+### import-har - HAR File Import
+
+```bash
+idotaku import-har HAR_FILE [OPTIONS]
+```
+
+| Option | Short | Default | Description |
+|--------|-------|---------|-------------|
+| `--output` | `-o` | `id_tracker_report.json` | Output report file |
+| `--config` | `-c` | none | Config file path |
+
+Analyzes HTTP traffic captured by browsers (Chrome DevTools) or tools like Burp Suite. Produces the same JSON report format as the proxy tracker.
+
+### diff - Report Comparison
+
+```bash
+idotaku diff REPORT_A REPORT_B [OPTIONS]
+```
+
+| Option | Short | Default | Description |
+|--------|-------|---------|-------------|
+| `--json-output` | `-o` | none | Export diff as JSON file |
+
+Compares two reports (before/after) showing new/removed IDOR candidates, tracked IDs, and flow count changes.
+
+### auth - Auth Context Analysis
+
+```bash
+idotaku auth [REPORT_FILE]
+```
+
+Detects cases where different auth tokens (users) access the same resource with the same ID — a strong indicator of IDOR vulnerability.
+
+### csv - CSV Export
+
+```bash
+idotaku csv [REPORT_FILE] [OPTIONS]
+```
+
+| Option | Short | Default | Description |
+|--------|-------|---------|-------------|
+| `--output` | `-o` | none | Output CSV file path |
+| `--mode` | `-m` | `idor` | Export mode: `idor` (IDOR candidates) or `flows` (all flows) |
+
+### sarif - SARIF Export
+
+```bash
+idotaku sarif [REPORT_FILE] [OPTIONS]
+```
+
+| Option | Short | Default | Description |
+|--------|-------|---------|-------------|
+| `--output` | `-o` | `idotaku.sarif.json` | Output SARIF file path |
+
+Generates a SARIF 2.1.0 file compatible with GitHub Code Scanning and other SARIF-compatible security tools.
+
 ### version - Version Display
 
 ```bash
@@ -446,12 +545,18 @@ idotaku -i
 - [x] Interactive CLI (interactive mode)
 - [x] Domain filter option for chain command
 - [x] Interactive HTML export for chain / sequence
+- [x] Risk scoring for IDOR candidates (`score` command)
+- [x] HAR file import (`import-har` command)
+- [x] Report diff / comparison (`diff` command)
+- [x] Auth context analysis (`auth` command)
+- [x] CSV export (`csv` command)
+- [x] SARIF 2.1.0 export (`sarif` command)
 
 ### Not Yet Implemented
 
 - [ ] Real-time Web UI
 - [ ] ID substitution testing (automatic replay)
-- [ ] HAR format export
+- [ ] HAR format export (convert report to HAR)
 - [ ] GraphQL support
 - [ ] WebSocket support
 - [ ] Response status code recording
