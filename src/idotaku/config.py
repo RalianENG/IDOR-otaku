@@ -1,11 +1,12 @@
 """Configuration loader for idotaku."""
 
 import re
+import sys
 from pathlib import Path
 from dataclasses import dataclass, field
 
 # ruamel.yaml is already a dependency of mitmproxy
-from ruamel.yaml import YAML
+from ruamel.yaml import YAML, YAMLError
 
 
 @dataclass
@@ -158,6 +159,7 @@ class IdotakuConfig:
 def load_config(config_path: str | Path | None = None) -> IdotakuConfig:
     """設定ファイルを読み込む"""
     config = IdotakuConfig()
+    explicit = config_path is not None
 
     if config_path is None:
         # デフォルトの設定ファイルパスを探す
@@ -177,50 +179,101 @@ def load_config(config_path: str | Path | None = None) -> IdotakuConfig:
 
     config_path = Path(config_path)
     if not config_path.exists():
+        if explicit:
+            print(f"Error: Config file not found: {config_path}", file=sys.stderr)
+            sys.exit(1)
         return config
 
-    yaml = YAML()
-    with open(config_path, "r", encoding="utf-8") as f:
-        data = yaml.load(f)
+    try:
+        yaml = YAML()
+        with open(config_path, "r", encoding="utf-8") as f:
+            data = yaml.load(f)
+    except YAMLError as e:
+        print(f"Error: Invalid YAML in {config_path}: {e}", file=sys.stderr)
+        sys.exit(1)
 
     if data is None:
         return config
 
     # idotaku セクションがある場合はその中を見る
-    if "idotaku" in data:
+    if isinstance(data, dict) and "idotaku" in data:
         data = data["idotaku"]
+
+    if not isinstance(data, dict):
+        print(f"Error: Config must be a YAML mapping, got {type(data).__name__}", file=sys.stderr)
+        sys.exit(1)
 
     # 設定を適用
     if "output" in data:
-        config.output = data["output"]
+        config.output = str(data["output"])
 
     if "min_numeric" in data:
-        config.min_numeric = int(data["min_numeric"])
+        try:
+            config.min_numeric = int(data["min_numeric"])
+        except (ValueError, TypeError):
+            print(f"Error: min_numeric must be an integer, got: {data['min_numeric']}", file=sys.stderr)
+            sys.exit(1)
 
     if "patterns" in data:
-        # デフォルトパターンにマージ（上書き or 追加）
-        config.patterns.update(data["patterns"])
+        if not isinstance(data["patterns"], dict):
+            print("Error: 'patterns' must be a mapping (name: regex)", file=sys.stderr)
+            sys.exit(1)
+        # Validate regex patterns at load time
+        for name, pattern in data["patterns"].items():
+            try:
+                re.compile(str(pattern))
+            except re.error as e:
+                print(f"Error: Invalid regex pattern '{name}': {e}", file=sys.stderr)
+                sys.exit(1)
+        config.patterns.update({k: str(v) for k, v in data["patterns"].items()})
 
     if "exclude_patterns" in data:
-        config.exclude_patterns = list(data["exclude_patterns"])
+        if not isinstance(data["exclude_patterns"], list):
+            print("Error: 'exclude_patterns' must be a list", file=sys.stderr)
+            sys.exit(1)
+        for p in data["exclude_patterns"]:
+            try:
+                re.compile(str(p))
+            except re.error as e:
+                print(f"Error: Invalid exclude pattern '{p}': {e}", file=sys.stderr)
+                sys.exit(1)
+        config.exclude_patterns = [str(p) for p in data["exclude_patterns"]]
 
     if "trackable_content_types" in data:
-        config.trackable_content_types = list(data["trackable_content_types"])
+        if not isinstance(data["trackable_content_types"], list):
+            print("Error: 'trackable_content_types' must be a list", file=sys.stderr)
+            sys.exit(1)
+        config.trackable_content_types = [str(ct) for ct in data["trackable_content_types"]]
 
     if "ignore_headers" in data:
-        config.ignore_headers = set(h.lower() for h in data["ignore_headers"])
+        if not isinstance(data["ignore_headers"], list):
+            print("Error: 'ignore_headers' must be a list", file=sys.stderr)
+            sys.exit(1)
+        config.ignore_headers = set(str(h).lower() for h in data["ignore_headers"])
 
     if "extra_ignore_headers" in data:
-        config.extra_ignore_headers = list(data["extra_ignore_headers"])
+        if not isinstance(data["extra_ignore_headers"], list):
+            print("Error: 'extra_ignore_headers' must be a list", file=sys.stderr)
+            sys.exit(1)
+        config.extra_ignore_headers = [str(h) for h in data["extra_ignore_headers"]]
 
     if "target_domains" in data:
-        config.target_domains = list(data["target_domains"])
+        if not isinstance(data["target_domains"], list):
+            print("Error: 'target_domains' must be a list", file=sys.stderr)
+            sys.exit(1)
+        config.target_domains = [str(d) for d in data["target_domains"]]
 
     if "exclude_domains" in data:
-        config.exclude_domains = list(data["exclude_domains"])
+        if not isinstance(data["exclude_domains"], list):
+            print("Error: 'exclude_domains' must be a list", file=sys.stderr)
+            sys.exit(1)
+        config.exclude_domains = [str(d) for d in data["exclude_domains"]]
 
     if "exclude_extensions" in data:
-        config.exclude_extensions = list(data["exclude_extensions"])
+        if not isinstance(data["exclude_extensions"], list):
+            print("Error: 'exclude_extensions' must be a list", file=sys.stderr)
+            sys.exit(1)
+        config.exclude_extensions = [str(e) for e in data["exclude_extensions"]]
 
     return config
 

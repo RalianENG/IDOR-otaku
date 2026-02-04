@@ -87,7 +87,8 @@ class ReportData:
             self.flows, key=lambda x: x.get("timestamp", "")
         )
         self._idor_values = {
-            item["id_value"] for item in self.potential_idor
+            item.get("id_value", "") for item in self.potential_idor
+            if item.get("id_value")
         }
 
     @property

@@ -5,6 +5,7 @@ import hashlib
 from datetime import datetime
 from dataclasses import dataclass, field
 from typing import Optional
+from pathlib import Path
 from urllib.parse import urlparse, parse_qs
 
 from mitmproxy import http, ctx
@@ -175,8 +176,13 @@ class IDTracker:
 
         return found_ids
 
-    def _extract_ids_from_json(self, data, prefix="") -> list[tuple[str, str, str]]:
+    _MAX_JSON_DEPTH = 50
+
+    def _extract_ids_from_json(self, data, prefix="", _depth=0) -> list[tuple[str, str, str]]:
         """JSONからIDとフィールド名を抽出"""
+        if _depth >= self._MAX_JSON_DEPTH:
+            return []
+
         found_ids = []
 
         if isinstance(data, dict):
@@ -187,11 +193,11 @@ class IDTracker:
                     for id_value, id_type in self._extract_ids_from_text(str_value):
                         found_ids.append((id_value, id_type, field_path))
                 elif isinstance(value, (dict, list)):
-                    found_ids.extend(self._extract_ids_from_json(value, field_path))
+                    found_ids.extend(self._extract_ids_from_json(value, field_path, _depth + 1))
         elif isinstance(data, list):
             for i, item in enumerate(data):
                 field_path = f"{prefix}[{i}]"
-                found_ids.extend(self._extract_ids_from_json(item, field_path))
+                found_ids.extend(self._extract_ids_from_json(item, field_path, _depth + 1))
 
         return found_ids
 
@@ -515,10 +521,15 @@ class IDTracker:
         """終了時にレポートを出力"""
         report = self.generate_report()
 
-        with open(self.output_file, "w", encoding="utf-8") as f:
-            json.dump(report, f, indent=2, ensure_ascii=False)
+        try:
+            output_path = Path(self.output_file)
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(output_path, "w", encoding="utf-8") as f:
+                json.dump(report, f, indent=2, ensure_ascii=False)
+            self._log("info", f"[IDOTAKU] Report saved to {self.output_file}")
+        except OSError as e:
+            self._log("error", f"[IDOTAKU] Failed to save report to {self.output_file}: {e}")
 
-        self._log("info", f"[IDOTAKU] Report saved to {self.output_file}")
         self.print_summary()
 
     def generate_report(self) -> dict:

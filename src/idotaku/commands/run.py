@@ -9,7 +9,7 @@ from pathlib import Path
 
 from rich.console import Console
 
-from ..browser import find_browser, find_mitmweb, get_tracker_script_path
+from ..browser import find_browser, find_browser_by_name, find_mitmweb, get_tracker_script_path
 
 console = Console()
 
@@ -63,12 +63,10 @@ def run_proxy(port, web_port, output, min_numeric, config, no_browser, browser):
             if browser == "auto":
                 browser_info = find_browser()
             else:
-                browser_info = find_browser()
-                if browser_info and browser_info[0] != browser:
-                    for name, path in [find_browser()]:
-                        if name == browser:
-                            browser_info = (name, path)
-                            break
+                browser_info = find_browser_by_name(browser)
+                if not browser_info:
+                    console.print(f"[yellow]Browser '{browser}' not found, falling back to auto-detect.[/yellow]")
+                    browser_info = find_browser()
 
             if browser_info:
                 browser_name, browser_path = browser_info

@@ -34,11 +34,12 @@ def report(report_file):
         table.add_column("Reason", style="red")
 
         for item in potential_idor[:20]:
+            reason = item.get("reason", "")
             table.add_row(
-                item["id_value"],
-                item["id_type"],
-                str(len(item["usages"])),
-                item["reason"][:50] + "..." if len(item["reason"]) > 50 else item["reason"],
+                item.get("id_value", "?"),
+                item.get("id_type", "?"),
+                str(len(item.get("usages", []))),
+                reason[:50] + "..." if len(reason) > 50 else reason,
             )
 
         console.print(table)

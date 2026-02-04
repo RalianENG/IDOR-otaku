@@ -179,10 +179,10 @@ class TestLoadConfig:
         assert config.output == "id_tracker_report.json"
 
     def test_load_nonexistent_file(self, tmp_path):
-        """Test loading from non-existent file returns default."""
-        config = load_config(tmp_path / "nonexistent.yaml")
-        assert isinstance(config, IdotakuConfig)
-        assert config.output == "id_tracker_report.json"
+        """Test loading from explicitly specified non-existent file exits with error."""
+        import pytest
+        with pytest.raises(SystemExit):
+            load_config(tmp_path / "nonexistent.yaml")
 
     def test_load_valid_config(self, tmp_path):
         """Test loading valid config file."""

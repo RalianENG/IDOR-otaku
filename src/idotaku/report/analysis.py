@@ -27,7 +27,9 @@ def build_param_producer_consumer(sorted_flows: list[dict]) -> tuple[dict, dict]
 
         # Track producers (first response)
         for res_id in flow.get("response_ids", []):
-            val = res_id["value"]
+            val = res_id.get("value", "")
+            if not val:
+                continue
             if val not in param_producer:
                 param_producer[val] = {
                     "idx": i,
@@ -38,7 +40,9 @@ def build_param_producer_consumer(sorted_flows: list[dict]) -> tuple[dict, dict]
 
         # Track consumers
         for req_id in flow.get("request_ids", []):
-            val = req_id["value"]
+            val = req_id.get("value", "")
+            if not val:
+                continue
             param_consumers[val].append({
                 "idx": i,
                 "method": method,
@@ -67,12 +71,16 @@ def build_param_flow_mappings(sorted_flows: list[dict]) -> tuple[dict, dict, dic
 
     for i, flow in enumerate(sorted_flows):
         for res_id in flow.get("response_ids", []):
-            val = res_id["value"]
+            val = res_id.get("value", "")
+            if not val:
+                continue
             param_origins[val].append(i)
             flow_produces[i].append(val)
 
         for req_id in flow.get("request_ids", []):
-            val = req_id["value"]
+            val = req_id.get("value", "")
+            if not val:
+                continue
             param_usages[val].append(i)
 
     return param_origins, param_usages, flow_produces
@@ -168,7 +176,9 @@ def build_id_transition_map(sorted_flows: list[dict]) -> tuple[dict, dict]:
     for i, flow in enumerate(sorted_flows):
         # Track request IDs for subsequent usage
         for req_id in flow.get("request_ids", []):
-            id_val = req_id["value"]
+            id_val = req_id.get("value", "")
+            if not id_val:
+                continue
             id_to_subsequent_usage[id_val].append({
                 "flow_idx": i,
                 "location": req_id.get("location", "?"),
@@ -177,7 +187,9 @@ def build_id_transition_map(sorted_flows: list[dict]) -> tuple[dict, dict]:
 
         # Track response IDs for origin
         for res_id in flow.get("response_ids", []):
-            id_val = res_id["value"]
+            id_val = res_id.get("value", "")
+            if not id_val:
+                continue
             if id_val not in id_to_origin:
                 id_to_origin[id_val] = {
                     "flow_idx": i,
