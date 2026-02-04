@@ -2,7 +2,6 @@
 
 from collections import defaultdict
 from urllib.parse import urlparse
-from typing import Any
 
 
 def build_param_producer_consumer(sorted_flows: list[dict]) -> tuple[dict, dict]:

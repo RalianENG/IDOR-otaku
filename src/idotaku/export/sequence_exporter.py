@@ -60,11 +60,9 @@ def _build_sequence_data(
     sorted_lifelines = sorted(lifeline_counts.items(), key=lambda x: x[1], reverse=True)
 
     if len(sorted_lifelines) > max_lifelines:
-        top_keys = {k for k, _ in sorted_lifelines[:max_lifelines]}
         lifeline_list = ["Client"] + [k for k, _ in sorted_lifelines[:max_lifelines]] + ["Other"]
         other_index = len(lifeline_list) - 1
     else:
-        top_keys = {k for k, _ in sorted_lifelines}
         lifeline_list = ["Client"] + [k for k, _ in sorted_lifelines]
         other_index = None
 

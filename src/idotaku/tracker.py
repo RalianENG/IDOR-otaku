@@ -1,6 +1,5 @@
 """ID Tracker core logic."""
 
-import re
 import json
 import hashlib
 from datetime import datetime

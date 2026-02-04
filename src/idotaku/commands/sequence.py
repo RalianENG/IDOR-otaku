@@ -131,9 +131,9 @@ def sequence(report_file, limit, html_output):
                 shared_display = ", ".join(list(shared)[:3])
                 if len(shared_display) > 30:
                     shared_display = shared_display[:27] + "..."
-                console.print(f"        [yellow]│[/yellow]")
+                console.print("        [yellow]│[/yellow]")
                 console.print(f"        [yellow]▼[/yellow] [dim]{shared_display}[/dim]")
-                console.print(f"        [yellow]│[/yellow]")
+                console.print("        [yellow]│[/yellow]")
             else:
                 console.print()
 

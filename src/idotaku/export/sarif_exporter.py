@@ -27,7 +27,6 @@ RULES = [
 def _build_sarif_result(finding: dict) -> dict:
     """Build a single SARIF result from an IDOR finding."""
     usages = finding.get("usages", [])
-    first_usage = usages[0] if usages else {}
 
     locations = []
     for usage in usages:

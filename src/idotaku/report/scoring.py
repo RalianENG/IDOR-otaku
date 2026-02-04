@@ -72,7 +72,7 @@ def score_idor_finding(finding: dict) -> RiskScore:
     # Factor 2: Parameter location (highest weight)
     locations = {u.get("location", "body") for u in usages}
     if locations:
-        best_loc = max(locations, key=lambda l: LOCATION_WEIGHTS.get(l, 5))
+        best_loc = max(locations, key=lambda loc: LOCATION_WEIGHTS.get(loc, 5))
         loc_score = LOCATION_WEIGHTS.get(best_loc, 5)
         score += loc_score
         factors.append(f"location={best_loc}(+{loc_score})")

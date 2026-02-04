@@ -7,7 +7,6 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-import click
 from rich.console import Console
 
 from ..browser import find_browser, find_mitmweb, get_tracker_script_path
