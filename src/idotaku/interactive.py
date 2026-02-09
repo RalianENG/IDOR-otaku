@@ -314,12 +314,13 @@ def run_interactive_mode() -> None:
             console.print(f"[dim]Running: idotaku {' '.join(args[1:])}[/dim]")
             console.print()
 
+            import click
             from .cli import main
             from click.testing import CliRunner
 
             runner = CliRunner()
-            result = runner.invoke(main, args, catch_exceptions=False)
-            console.print(result.output)
+            result = runner.invoke(main, args, catch_exceptions=False, color=True)
+            click.echo(result.output, nl=False)
 
             # Continue?
             console.print()
