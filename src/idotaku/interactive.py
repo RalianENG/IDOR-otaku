@@ -231,10 +231,9 @@ def run_interactive_mode() -> None:
     from .report import load_report, ReportLoadError
 
     console = Console()
-    console.print()
-    console.print("[bold cyan]idotaku[/bold cyan] - Interactive Mode")
-    console.print("[dim]API ID tracking tool for security testing[/dim]")
-    console.print()
+    from .banner import print_banner
+
+    print_banner(console)
 
     while True:
         # Select command

@@ -9,6 +9,7 @@ from pathlib import Path
 
 from rich.console import Console
 
+from ..banner import print_banner
 from ..browser import find_browser, find_browser_by_name, find_mitmweb, get_tracker_script_path
 
 console = Console()
@@ -27,7 +28,7 @@ def run_proxy(port, web_port, output, min_numeric, config, no_browser, browser):
 
     tracker_script = get_tracker_script_path()
 
-    console.print("[bold blue]idotaku[/bold blue] - API ID Tracker")
+    print_banner(console)
     console.print(f"  Proxy: [green]127.0.0.1:{port}[/green]")
     console.print(f"  Web UI: [green]http://127.0.0.1:{web_port}[/green]")
     console.print(f"  Report: [green]{output}[/green]")

@@ -28,7 +28,7 @@ class TestCliMain:
         """Test version command."""
         result = runner.invoke(main, ["version"])
         assert result.exit_code == 0
-        assert "idotaku" in result.output
+        assert "IDOR detection tool" in result.output
 
 
 class TestReportCommand:
