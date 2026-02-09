@@ -1,7 +1,6 @@
 """Tests for configuration module."""
 
 import pytest
-from pathlib import Path
 
 from idotaku.config import IdotakuConfig, load_config, get_default_config_yaml
 
@@ -278,3 +277,104 @@ class TestGetDefaultConfigYaml:
         assert "exclude_patterns:" in yaml_str
         assert "target_domains:" in yaml_str
         assert "exclude_domains:" in yaml_str
+
+
+class TestLoadConfigErrors:
+    """Tests for load_config error handling."""
+
+    def test_invalid_yaml_syntax(self, tmp_path):
+        """Test loading file with invalid YAML syntax."""
+        config_file = tmp_path / "invalid.yaml"
+        config_file.write_text("invalid: yaml: syntax: [unclosed")
+        with pytest.raises(SystemExit):
+            load_config(config_file)
+
+    def test_non_dict_config(self, tmp_path):
+        """Test loading config that is not a mapping."""
+        config_file = tmp_path / "list.yaml"
+        config_file.write_text("- item1\n- item2\n")
+        with pytest.raises(SystemExit):
+            load_config(config_file)
+
+    def test_invalid_min_numeric_type(self, tmp_path):
+        """Test loading config with invalid min_numeric type."""
+        config_file = tmp_path / "invalid_numeric.yaml"
+        config_file.write_text("idotaku:\n  min_numeric: not_a_number\n")
+        with pytest.raises(SystemExit):
+            load_config(config_file)
+
+    def test_patterns_not_dict(self, tmp_path):
+        """Test loading config with patterns as list instead of dict."""
+        config_file = tmp_path / "invalid_patterns.yaml"
+        config_file.write_text("idotaku:\n  patterns:\n    - pattern1\n")
+        with pytest.raises(SystemExit):
+            load_config(config_file)
+
+    def test_invalid_regex_pattern(self, tmp_path):
+        """Test loading config with invalid regex pattern."""
+        config_file = tmp_path / "invalid_regex.yaml"
+        config_file.write_text('idotaku:\n  patterns:\n    broken: "[unclosed"\n')
+        with pytest.raises(SystemExit):
+            load_config(config_file)
+
+    def test_exclude_patterns_not_list(self, tmp_path):
+        """Test loading config with exclude_patterns as string."""
+        config_file = tmp_path / "invalid_exclude.yaml"
+        config_file.write_text('idotaku:\n  exclude_patterns: "not a list"\n')
+        with pytest.raises(SystemExit):
+            load_config(config_file)
+
+    def test_invalid_exclude_pattern_regex(self, tmp_path):
+        """Test loading config with invalid exclude pattern regex."""
+        config_file = tmp_path / "invalid_exclude_regex.yaml"
+        config_file.write_text('idotaku:\n  exclude_patterns:\n    - "[invalid"\n')
+        with pytest.raises(SystemExit):
+            load_config(config_file)
+
+    def test_trackable_content_types_not_list(self, tmp_path):
+        """Test loading config with trackable_content_types as string."""
+        config_file = tmp_path / "invalid_ct.yaml"
+        config_file.write_text('idotaku:\n  trackable_content_types: "application/json"\n')
+        with pytest.raises(SystemExit):
+            load_config(config_file)
+
+    def test_ignore_headers_not_list(self, tmp_path):
+        """Test loading config with ignore_headers as string."""
+        config_file = tmp_path / "invalid_headers.yaml"
+        config_file.write_text('idotaku:\n  ignore_headers: "content-type"\n')
+        with pytest.raises(SystemExit):
+            load_config(config_file)
+
+    def test_target_domains_not_list(self, tmp_path):
+        """Test loading config with target_domains as string."""
+        config_file = tmp_path / "invalid_domains.yaml"
+        config_file.write_text('idotaku:\n  target_domains: "example.com"\n')
+        with pytest.raises(SystemExit):
+            load_config(config_file)
+
+
+class TestLoadConfigAutoDiscovery:
+    """Tests for automatic config file discovery."""
+
+    def test_discover_idotaku_yaml(self, tmp_path, monkeypatch):
+        """Test discovering idotaku.yaml in cwd."""
+        config_file = tmp_path / "idotaku.yaml"
+        config_file.write_text("idotaku:\n  output: discovered.json\n")
+        monkeypatch.chdir(tmp_path)
+        config = load_config(None)
+        assert config.output == "discovered.json"
+
+    def test_discover_idotaku_yml(self, tmp_path, monkeypatch):
+        """Test discovering idotaku.yml in cwd."""
+        config_file = tmp_path / "idotaku.yml"
+        config_file.write_text("idotaku:\n  output: discovered_yml.json\n")
+        monkeypatch.chdir(tmp_path)
+        config = load_config(None)
+        assert config.output == "discovered_yml.json"
+
+    def test_no_config_returns_default(self, tmp_path, monkeypatch):
+        """Test that missing config returns default."""
+        monkeypatch.chdir(tmp_path)
+        config = load_config(None)
+        assert isinstance(config, IdotakuConfig)
+        assert config.output == "id_tracker_report.json"

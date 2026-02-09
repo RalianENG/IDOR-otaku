@@ -48,13 +48,16 @@ def extract_domain(url: str) -> str:
         url: Full URL
 
     Returns:
-        Domain (netloc) or empty string if extraction fails
+        Domain (netloc) or empty string if URL is empty/invalid
+
+    Note:
+        urlparse() is robust and does not raise exceptions for malformed URLs.
+        It returns empty components for unparseable input instead.
     """
-    try:
-        parsed = urlparse(url)
-        return parsed.netloc or ""
-    except Exception:
+    if not url or not isinstance(url, str):
         return ""
+    parsed = urlparse(url)
+    return parsed.netloc or ""
 
 
 def get_base_domain(domain: str) -> str:

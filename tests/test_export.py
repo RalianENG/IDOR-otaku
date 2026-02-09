@@ -1,7 +1,6 @@
 """Tests for export module."""
 
 import pytest
-from pathlib import Path
 
 from idotaku.export.chain_exporter import (
     _get_flow_details,

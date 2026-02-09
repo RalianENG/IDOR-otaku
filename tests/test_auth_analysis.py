@@ -1,13 +1,11 @@
 """Tests for auth context analysis."""
 
-import json
 
 import pytest
 
 from idotaku.report.auth_analysis import (
     detect_cross_user_access,
     enrich_idor_with_auth,
-    CrossUserAccess,
 )
 
 

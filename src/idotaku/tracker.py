@@ -13,13 +13,13 @@ from mitmproxy import http, ctx
 try:
     from .config import load_config, IdotakuConfig
 except ImportError:
-    # 直接実行時（mitmproxy -s tracker.py）
+    # Direct execution (mitmproxy -s tracker.py)
     from config import load_config, IdotakuConfig
 
 
 @dataclass
 class IDOccurrence:
-    """IDの出現情報"""
+    """ID occurrence information."""
 
     id_value: str
     id_type: str  # "numeric", "uuid", "token"
@@ -33,7 +33,7 @@ class IDOccurrence:
 
 @dataclass
 class TrackedID:
-    """追跡対象のID"""
+    """Tracked ID information."""
 
     value: str
     id_type: str
@@ -44,7 +44,7 @@ class TrackedID:
 
 @dataclass
 class FlowRecord:
-    """リクエスト-レスポンスのペア"""
+    """Request-response pair."""
 
     flow_id: str
     url: str
@@ -56,7 +56,7 @@ class FlowRecord:
 
 
 class IDTracker:
-    """APIコールからIDを追跡するmitmproxyアドオン"""
+    """mitmproxy addon that tracks IDs from API calls."""
 
     def __init__(self, config: IdotakuConfig | None = None):
         self.tracked_ids: dict[str, TrackedID] = {}
@@ -66,11 +66,11 @@ class IDTracker:
         self._use_ctx = True  # mitmproxy context available
         self._config_path: str | None = "__uninitialized__"  # sentinel value
 
-        # 設定を適用
+        # Apply config
         self._apply_config(config or IdotakuConfig())
 
     def _apply_config(self, config: IdotakuConfig):
-        """設定を適用"""
+        """Apply configuration."""
         self.config = config
         self.min_numeric = config.min_numeric
         self.output_file = config.output
@@ -82,15 +82,15 @@ class IDTracker:
         self.exclude_domains = config.exclude_domains
 
     def _should_track_url(self, url: str) -> bool:
-        """URLを追跡すべきかチェック（ドメイン・拡張子フィルタリング）"""
+        """Check if URL should be tracked (domain and extension filtering)."""
         parsed = urlparse(url)
-        domain = parsed.netloc.split(":")[0]  # ポート番号を除去
+        domain = parsed.netloc.split(":")[0]  # Remove port number
 
-        # ドメインチェック
+        # Domain check
         if not self.config.should_track_domain(domain):
             return False
 
-        # 拡張子チェック
+        # Extension check
         if not self.config.should_track_path(parsed.path):
             return False
 
@@ -119,7 +119,7 @@ class IDTracker:
 
     def configure(self, updates):
         """mitmproxy configuration update."""
-        # 設定ファイルが指定されたら読み込む
+        # Load config file if specified
         if "idotaku_config" in updates:
             config_path = ctx.options.idotaku_config or None
             if config_path != self._config_path:
@@ -130,14 +130,19 @@ class IDTracker:
                 self._log("info", f"[IDOTAKU] target_domains: {self.target_domains}")
                 self._log("info", f"[IDOTAKU] exclude_extensions: {self.config.exclude_extensions[:5]}...")
 
-        # コマンドラインオプションで上書き
+        # Override with command-line options
         if "idotaku_output" in updates and ctx.options.idotaku_output:
             self.output_file = ctx.options.idotaku_output
         if "idotaku_min_numeric" in updates and ctx.options.idotaku_min_numeric > 0:
             self.min_numeric = ctx.options.idotaku_min_numeric
 
     def _log(self, level: str, message: str):
-        """Log message."""
+        """Log message via mitmproxy context or fallback to stdout.
+
+        Args:
+            level: Log level ("info", "warn", "error")
+            message: Message to log
+        """
         if self._use_ctx:
             try:
                 if level == "info":
@@ -146,20 +151,23 @@ class IDTracker:
                     ctx.log.warn(message)
                 elif level == "error":
                     ctx.log.error(message)
-            except Exception:
+            except (AttributeError, RuntimeError):
+                # mitmproxy context not available (e.g., during testing or direct execution)
+                # AttributeError: ctx.log not initialized
+                # RuntimeError: context accessed outside of request lifecycle
                 print(f"[{level.upper()}] {message}")
         else:
             print(f"[{level.upper()}] {message}")
 
     def _should_exclude(self, value: str) -> bool:
-        """除外すべき値かチェック"""
+        """Check if value should be excluded."""
         for pattern in self.exclude_patterns:
             if pattern.match(value):
                 return True
         return False
 
     def _extract_ids_from_text(self, text: str) -> list[tuple[str, str]]:
-        """テキストからIDを抽出"""
+        """Extract IDs from text."""
         found_ids = []
 
         for id_type, pattern in self.patterns.items():
@@ -179,7 +187,7 @@ class IDTracker:
     _MAX_JSON_DEPTH = 50
 
     def _extract_ids_from_json(self, data, prefix="", _depth=0) -> list[tuple[str, str, str]]:
-        """JSONからIDとフィールド名を抽出"""
+        """Extract IDs and field names from JSON."""
         if _depth >= self._MAX_JSON_DEPTH:
             return []
 
@@ -202,20 +210,36 @@ class IDTracker:
         return found_ids
 
     def _parse_body(self, content: bytes, content_type: str) -> Optional[dict | str]:
-        """ボディをパース"""
+        """Parse request/response body.
+
+        Args:
+            content: Raw body bytes
+            content_type: Content-Type header value
+
+        Returns:
+            Parsed body as dict (for JSON) or str (for text), or None if parsing fails
+        """
         if not content:
             return None
 
-        try:
-            if "application/json" in content_type:
-                return json.loads(content.decode("utf-8", errors="ignore"))
-            else:
-                return content.decode("utf-8", errors="ignore")
-        except Exception:
-            return None
+        # Decode bytes to string (errors="ignore" handles malformed UTF-8 gracefully)
+        decoded = content.decode("utf-8", errors="ignore")
+
+        if "application/json" in content_type:
+            try:
+                return json.loads(decoded)
+            except json.JSONDecodeError:
+                # Malformed JSON - fall back to plain text for ID extraction
+                return decoded
+            except (TypeError, ValueError) as e:
+                # Unexpected data type (e.g., None passed to json.loads)
+                self._log("warn", f"[IDOTAKU] JSON parse warning: {type(e).__name__}: {e}")
+                return decoded
+
+        return decoded
 
     def _record_id(self, occurrence: IDOccurrence):
-        """IDを記録"""
+        """Record an ID occurrence."""
         id_value = occurrence.id_value
 
         if id_value not in self.tracked_ids:
@@ -241,7 +265,7 @@ class IDTracker:
             )
 
     def _collect_ids_from_url(self, url: str) -> list[dict]:
-        """URLからIDを収集して返す"""
+        """Collect IDs from URL and return them."""
         found = []
         parsed = urlparse(url)
 
@@ -257,7 +281,7 @@ class IDTracker:
         return found
 
     def _collect_ids_from_body(self, body: bytes, content_type: str) -> list[dict]:
-        """ボディからIDを収集して返す"""
+        """Collect IDs from body and return them."""
         found = []
         parsed = self._parse_body(body, content_type)
         if parsed is None:
@@ -273,15 +297,15 @@ class IDTracker:
         return found
 
     def _collect_ids_from_headers(self, headers) -> list[dict]:
-        """ヘッダーからIDを収集して返す（ブラックリスト以外）"""
+        """Collect IDs from headers and return them (excluding blacklisted headers)."""
         found = []
 
         for header_name, header_value in headers.items():
-            # 除外ヘッダーはスキップ
+            # Skip ignored headers
             if header_name.lower() in self.ignore_headers:
                 continue
 
-            # Cookie は key=value をパース
+            # Parse Cookie as key=value pairs
             if header_name.lower() == "cookie":
                 for cookie_part in header_value.split(";"):
                     cookie_part = cookie_part.strip()
@@ -294,9 +318,9 @@ class IDTracker:
                                 "location": "header",
                                 "field": f"cookie:{cookie_name.strip()}",
                             })
-            # Set-Cookie も同様
+            # Set-Cookie is handled similarly
             elif header_name.lower() == "set-cookie":
-                cookie_part = header_value.split(";")[0]  # 最初の key=value だけ
+                cookie_part = header_value.split(";")[0]  # First key=value only
                 if "=" in cookie_part:
                     cookie_name, cookie_value = cookie_part.split("=", 1)
                     for id_value, id_type in self._extract_ids_from_text(cookie_value):
@@ -306,9 +330,9 @@ class IDTracker:
                             "location": "header",
                             "field": f"set-cookie:{cookie_name.strip()}",
                         })
-            # Authorization は Bearer トークン等を抽出
+            # Authorization: extract Bearer token, etc.
             elif header_name.lower() == "authorization":
-                # "Bearer xxx" や "Basic xxx" から値部分を抽出
+                # Extract value part from "Bearer xxx" or "Basic xxx"
                 parts = header_value.split(" ", 1)
                 auth_value = parts[1] if len(parts) > 1 else header_value
                 for id_value, id_type in self._extract_ids_from_text(auth_value):
@@ -318,7 +342,7 @@ class IDTracker:
                         "location": "header",
                         "field": f"authorization:{parts[0].lower()}" if len(parts) > 1 else "authorization",
                     })
-            # その他のヘッダーはそのまま値を抽出
+            # Other headers: extract values as-is
             else:
                 for id_value, id_type in self._extract_ids_from_text(header_value):
                     found.append({
@@ -331,7 +355,7 @@ class IDTracker:
         return found
 
     def _extract_auth_context(self, headers) -> dict | None:
-        """リクエストヘッダーから認証コンテキストを抽出"""
+        """Extract authentication context from request headers."""
         auth_header = headers.get("authorization", "")
         if auth_header:
             parts = auth_header.split(" ", 1)
@@ -354,7 +378,7 @@ class IDTracker:
         return None
 
     def _process_url(self, url: str, method: str, direction: str, timestamp: str):
-        """URLからIDを抽出"""
+        """Extract IDs from URL."""
         parsed = urlparse(url)
 
         for id_value, id_type in self._extract_ids_from_text(parsed.path):
@@ -391,7 +415,7 @@ class IDTracker:
     def _process_body(
         self, body: bytes, content_type: str, url: str, method: str, direction: str, timestamp: str
     ):
-        """ボディからIDを抽出"""
+        """Extract IDs from body."""
         parsed = self._parse_body(body, content_type)
         if parsed is None:
             return
@@ -426,10 +450,10 @@ class IDTracker:
                 )
 
     def request(self, flow: http.HTTPFlow):
-        """リクエストを処理"""
+        """Process request."""
         url = flow.request.pretty_url
 
-        # ドメインフィルタリング
+        # Domain filtering
         if not self._should_track_url(url):
             return
 
@@ -437,7 +461,7 @@ class IDTracker:
         method = flow.request.method
         flow_id = flow.id
 
-        # FlowRecordを作成
+        # Create FlowRecord
         if flow_id not in self.flow_records:
             self.flow_records[flow_id] = FlowRecord(
                 flow_id=flow_id,
@@ -446,12 +470,12 @@ class IDTracker:
                 timestamp=timestamp,
             )
 
-        # 認証コンテキストを抽出
+        # Extract authentication context
         auth_ctx = self._extract_auth_context(flow.request.headers)
         if auth_ctx:
             self.flow_records[flow_id].auth_context = auth_ctx
 
-        # IDを収集
+        # Collect IDs
         found_ids = []
         found_ids.extend(self._collect_ids_from_url(url))
         found_ids.extend(self._collect_ids_from_headers(flow.request.headers))
@@ -460,7 +484,7 @@ class IDTracker:
         if any(ct in content_type for ct in self.trackable_content_types):
             found_ids.extend(self._collect_ids_from_body(flow.request.content, content_type))
 
-        # FlowRecordに追加 & TrackedIDに記録
+        # Add to FlowRecord and record in TrackedID
         for id_info in found_ids:
             self.flow_records[flow_id].request_ids.append(id_info)
             self._record_id(IDOccurrence(
@@ -475,10 +499,10 @@ class IDTracker:
             ))
 
     def response(self, flow: http.HTTPFlow):
-        """レスポンスを処理"""
+        """Process response."""
         url = flow.request.pretty_url
 
-        # ドメインフィルタリング
+        # Domain filtering
         if not self._should_track_url(url):
             return
 
@@ -486,7 +510,7 @@ class IDTracker:
         method = flow.request.method
         flow_id = flow.id
 
-        # FlowRecordがなければ作成（通常はrequestで作成済み）
+        # Create FlowRecord if not exists (usually created in request)
         if flow_id not in self.flow_records:
             self.flow_records[flow_id] = FlowRecord(
                 flow_id=flow_id,
@@ -495,7 +519,7 @@ class IDTracker:
                 timestamp=timestamp,
             )
 
-        # IDを収集
+        # Collect IDs
         found_ids = []
         found_ids.extend(self._collect_ids_from_headers(flow.response.headers))
 
@@ -503,7 +527,7 @@ class IDTracker:
         if any(ct in content_type for ct in self.trackable_content_types):
             found_ids.extend(self._collect_ids_from_body(flow.response.content, content_type))
 
-        # FlowRecordに追加 & TrackedIDに記録
+        # Add to FlowRecord and record in TrackedID
         for id_info in found_ids:
             self.flow_records[flow_id].response_ids.append(id_info)
             self._record_id(IDOccurrence(
@@ -518,7 +542,7 @@ class IDTracker:
             ))
 
     def done(self):
-        """終了時にレポートを出力"""
+        """Output report on shutdown."""
         report = self.generate_report()
 
         try:
@@ -533,7 +557,7 @@ class IDTracker:
         self.print_summary()
 
     def generate_report(self) -> dict:
-        """レポートを生成"""
+        """Generate report."""
         report = {
             "summary": {
                 "total_unique_ids": len(self.tracked_ids),
@@ -546,7 +570,7 @@ class IDTracker:
             "potential_idor": [],
         }
 
-        # Flow単位のレポート
+        # Per-flow report
         for flow_id, flow_rec in self.flow_records.items():
             flow_dict = {
                 "flow_id": flow_rec.flow_id,
@@ -582,7 +606,7 @@ class IDTracker:
         return report
 
     def _occurrence_to_dict(self, occ: IDOccurrence) -> dict:
-        """IDOccurrenceを辞書に変換"""
+        """Convert IDOccurrence to dictionary."""
         return {
             "url": occ.url,
             "method": occ.method,
@@ -592,7 +616,7 @@ class IDTracker:
         }
 
     def print_summary(self):
-        """サマリーを出力"""
+        """Print summary."""
         self._log("info", "=" * 60)
         self._log("info", "[IDOTAKU] Summary")
         self._log("info", "=" * 60)

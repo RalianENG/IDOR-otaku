@@ -9,7 +9,6 @@ from idotaku.import_har import (
     import_har_to_file,
     _extract_ids_from_text,
     _collect_ids_from_url,
-    _collect_ids_from_body,
     _collect_ids_from_headers,
     _build_tracked_ids,
     _build_potential_idor,

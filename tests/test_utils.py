@@ -1,6 +1,5 @@
 """Tests for utility functions."""
 
-import pytest
 
 from idotaku.utils import (
     normalize_api_path,

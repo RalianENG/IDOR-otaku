@@ -13,24 +13,24 @@ from ruamel.yaml import YAML, YAMLError
 class IdotakuConfig:
     """idotaku configuration."""
 
-    # 出力設定
+    # Output settings
     output: str = "id_tracker_report.json"
     min_numeric: int = 100
 
-    # ID検出パターン（名前 -> 正規表現文字列）
+    # ID detection patterns (name -> regex string)
     patterns: dict[str, str] = field(default_factory=lambda: {
         "uuid": r"\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b",
         "numeric": r"\b[1-9]\d{2,10}\b",
         "token": r"\b[A-Za-z0-9_-]{20,}\b",
     })
 
-    # 除外パターン（ID候補から除外する正規表現）
+    # Exclude patterns (regex to exclude from ID candidates)
     exclude_patterns: list[str] = field(default_factory=lambda: [
         r"^\d{10,13}$",      # Unix timestamp
         r"^\d+\.\d+\.\d+$",  # Version numbers
     ])
 
-    # 追跡対象Content-Type
+    # Trackable Content-Types
     trackable_content_types: list[str] = field(default_factory=lambda: [
         "application/json",
         "application/x-www-form-urlencoded",
@@ -38,67 +38,67 @@ class IdotakuConfig:
         "text/plain",
     ])
 
-    # 除外ヘッダー（ブラックリスト）
+    # Ignore headers (blacklist)
     ignore_headers: set[str] = field(default_factory=lambda: {
-        # 標準的なメタデータ
+        # Standard metadata
         "content-type", "content-length", "content-encoding",
         "accept", "accept-encoding", "accept-language", "accept-charset",
         "user-agent", "host", "connection", "origin", "referer",
-        # キャッシュ系
+        # Cache-related
         "cache-control", "pragma", "etag", "last-modified", "expires",
         "if-none-match", "if-modified-since",
         # CORS
         "access-control-allow-origin", "access-control-allow-methods",
         "access-control-allow-headers", "access-control-expose-headers",
         "access-control-max-age", "access-control-allow-credentials",
-        # その他
+        # Others
         "date", "server", "vary", "transfer-encoding", "keep-alive",
         "upgrade", "sec-ch-ua", "sec-ch-ua-mobile", "sec-ch-ua-platform",
         "sec-fetch-dest", "sec-fetch-mode", "sec-fetch-site", "sec-fetch-user",
         "dnt", "upgrade-insecure-requests",
     })
 
-    # 追加で除外したいヘッダー（ユーザー定義）
+    # Additional headers to ignore (user-defined)
     extra_ignore_headers: list[str] = field(default_factory=list)
 
-    # ターゲットドメイン（ホワイトリスト、空なら全ドメイン）
+    # Target domains (whitelist, empty means all domains)
     target_domains: list[str] = field(default_factory=list)
 
-    # 除外ドメイン（ブラックリスト）
+    # Exclude domains (blacklist)
     exclude_domains: list[str] = field(default_factory=list)
 
-    # 除外拡張子（静的ファイルなど）
+    # Exclude extensions (static files, etc.)
     exclude_extensions: list[str] = field(default_factory=lambda: [
-        # スタイル・スクリプト
+        # Styles and scripts
         ".css", ".js", ".map",
-        # 画像
+        # Images
         ".png", ".jpg", ".jpeg", ".gif", ".svg", ".ico", ".webp", ".bmp",
-        # フォント
+        # Fonts
         ".woff", ".woff2", ".ttf", ".eot", ".otf",
-        # メディア
+        # Media
         ".mp3", ".mp4", ".webm", ".ogg", ".wav",
-        # その他
+        # Others
         ".pdf", ".zip", ".gz",
     ])
 
     def get_compiled_patterns(self) -> dict[str, re.Pattern]:
-        """コンパイル済み正規表現を返す"""
+        """Return compiled regex patterns."""
         return {
             name: re.compile(pattern, re.IGNORECASE if name == "uuid" else 0)
             for name, pattern in self.patterns.items()
         }
 
     def get_compiled_exclude_patterns(self) -> list[re.Pattern]:
-        """コンパイル済み除外パターンを返す"""
+        """Return compiled exclude patterns."""
         return [re.compile(p) for p in self.exclude_patterns]
 
     def get_all_ignore_headers(self) -> set[str]:
-        """全ての除外ヘッダーを返す"""
+        """Return all headers to ignore."""
         return self.ignore_headers | set(h.lower() for h in self.extra_ignore_headers)
 
     @staticmethod
     def match_domain(domain: str, pattern: str) -> bool:
-        """ドメインがパターンにマッチするかチェック（ワイルドカード対応）
+        """Check if domain matches pattern (wildcard supported).
 
         Examples:
             match_domain("api.example.com", "api.example.com") -> True
@@ -110,28 +110,28 @@ class IdotakuConfig:
         pattern = pattern.lower()
 
         if pattern.startswith("*."):
-            # ワイルドカードパターン: *.example.com
+            # Wildcard pattern: *.example.com
             suffix = pattern[1:]  # .example.com
             return domain.endswith(suffix) and domain != pattern[2:]
         else:
-            # 完全一致
+            # Exact match
             return domain == pattern
 
     def should_track_domain(self, domain: str) -> bool:
-        """ドメインを追跡すべきかチェック
+        """Check if domain should be tracked.
 
         Returns:
-            True: 追跡する
-            False: 追跡しない
+            True: track this domain
+            False: don't track this domain
         """
         domain = domain.lower()
 
-        # ブラックリストチェック（優先）
+        # Blacklist check (takes priority)
         for pattern in self.exclude_domains:
             if self.match_domain(domain, pattern):
                 return False
 
-        # ホワイトリストチェック（空なら全ドメイン許可）
+        # Whitelist check (empty allows all domains)
         if not self.target_domains:
             return True
 
@@ -142,13 +142,13 @@ class IdotakuConfig:
         return False
 
     def should_track_path(self, path: str) -> bool:
-        """パスを追跡すべきかチェック（拡張子フィルタリング）
+        """Check if path should be tracked (extension filtering).
 
         Returns:
-            True: 追跡する
-            False: 追跡しない（除外拡張子にマッチ）
+            True: track this path
+            False: don't track (matches excluded extension)
         """
-        # クエリパラメータを除去してパスのみ取得
+        # Remove query params and get path only
         path_only = path.lower().split("?")[0]
         for ext in self.exclude_extensions:
             if path_only.endswith(ext.lower()):
@@ -157,12 +157,12 @@ class IdotakuConfig:
 
 
 def load_config(config_path: str | Path | None = None) -> IdotakuConfig:
-    """設定ファイルを読み込む"""
+    """Load configuration file."""
     config = IdotakuConfig()
     explicit = config_path is not None
 
     if config_path is None:
-        # デフォルトの設定ファイルパスを探す
+        # Search for default config file paths
         search_paths = [
             Path.cwd() / "idotaku.yaml",
             Path.cwd() / "idotaku.yml",
@@ -175,7 +175,7 @@ def load_config(config_path: str | Path | None = None) -> IdotakuConfig:
                 break
 
     if config_path is None:
-        return config  # デフォルト設定を返す
+        return config  # Return default config
 
     config_path = Path(config_path)
     if not config_path.exists():
@@ -191,11 +191,14 @@ def load_config(config_path: str | Path | None = None) -> IdotakuConfig:
     except YAMLError as e:
         print(f"Error: Invalid YAML in {config_path}: {e}", file=sys.stderr)
         sys.exit(1)
+    except OSError as e:
+        print(f"Error: Cannot read config file {config_path}: {e}", file=sys.stderr)
+        sys.exit(1)
 
     if data is None:
         return config
 
-    # idotaku セクションがある場合はその中を見る
+    # If there's an idotaku section, use its contents
     if isinstance(data, dict) and "idotaku" in data:
         data = data["idotaku"]
 
@@ -203,7 +206,7 @@ def load_config(config_path: str | Path | None = None) -> IdotakuConfig:
         print(f"Error: Config must be a YAML mapping, got {type(data).__name__}", file=sys.stderr)
         sys.exit(1)
 
-    # 設定を適用
+    # Apply settings
     if "output" in data:
         config.output = str(data["output"])
 
@@ -279,7 +282,7 @@ def load_config(config_path: str | Path | None = None) -> IdotakuConfig:
 
 
 def get_default_config_yaml() -> str:
-    """デフォルト設定のYAMLテンプレートを返す"""
+    """Return default YAML config template."""
     return '''# idotaku configuration
 # Place this file as idotaku.yaml in your working directory
 

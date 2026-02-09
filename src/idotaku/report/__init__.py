@@ -1,6 +1,6 @@
 """Report loading and analysis for idotaku."""
 
-from .loader import load_report
+from .loader import load_report, ReportLoadError
 from .models import (
     ReportData,
     ReportSummary,
@@ -28,6 +28,7 @@ from .auth_analysis import (
 
 __all__ = [
     "load_report",
+    "ReportLoadError",
     "ReportData",
     "ReportSummary",
     "TrackedID",

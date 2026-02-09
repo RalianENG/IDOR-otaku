@@ -1,6 +1,6 @@
 """Tests for risk scoring."""
 
-from idotaku.report.scoring import score_idor_finding, score_all_findings, RiskScore
+from idotaku.report.scoring import score_idor_finding, score_all_findings
 
 
 class TestScoreIdorFinding:

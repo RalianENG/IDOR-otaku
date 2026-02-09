@@ -1,6 +1,5 @@
 """Tests for visualization module."""
 
-import pytest
 from rich.text import Text
 
 from idotaku.visualization.console import (

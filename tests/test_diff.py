@@ -4,7 +4,7 @@ import json
 
 import pytest
 
-from idotaku.report.diff import diff_reports, diff_to_dict, DiffResult
+from idotaku.report.diff import diff_reports, diff_to_dict
 from idotaku.report.loader import load_report
 
 

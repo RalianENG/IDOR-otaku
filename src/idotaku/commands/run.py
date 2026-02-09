@@ -121,7 +121,12 @@ def run_proxy(port, web_port, output, min_numeric, config, no_browser, browser):
         if temp_profile and os.path.exists(temp_profile):
             try:
                 shutil.rmtree(temp_profile)
-            except Exception:
-                pass
+            except OSError as e:
+                # Non-critical: temp directory cleanup failed
+                # Common causes: file locked by browser, permission denied on Windows
+                # OS will eventually clean up temp directories
+                console.print(
+                    f"[dim]Note: Could not remove temp profile {temp_profile}: {e}[/dim]"
+                )
 
     console.print(f"[bold green]Done![/bold green] Report saved to: {output}")

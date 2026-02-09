@@ -1,9 +1,21 @@
 """Tests for IDTracker core logic (internal methods, no mitmproxy flow mocking)."""
 
+import json
+import tempfile
+from pathlib import Path
+from unittest.mock import MagicMock, patch
+
 import pytest
 
-from idotaku.tracker import IDTracker, IDOccurrence, TrackedID, FlowRecord
+from idotaku.tracker import IDTracker, IDOccurrence, FlowRecord
 from idotaku.config import IdotakuConfig
+
+
+class MockHeaders(dict):
+    """Mock mitmproxy headers with get() method."""
+
+    def get(self, key, default=""):
+        return super().get(key.lower(), default)
 
 
 @pytest.fixture
@@ -122,9 +134,15 @@ class TestParseBody:
         assert result is None
 
     def test_invalid_json(self, tracker):
+        """Test that invalid JSON falls back to plain text (not None).
+
+        This allows ID extraction from malformed JSON responses,
+        which is useful for API testing when responses may be corrupted.
+        """
         content = b"not valid json"
         result = tracker._parse_body(content, "application/json")
-        assert result is None
+        # Falls back to plain text instead of returning None
+        assert result == "not valid json"
 
 
 class TestRecordId:
@@ -420,3 +438,240 @@ class TestOccurrenceToDict:
         # direction and id_value/id_type are NOT included in dict
         assert "direction" not in result
         assert "id_value" not in result
+
+
+class TestLogMethod:
+    """Test _log() method."""
+
+    def test_log_info_without_ctx(self, tracker, capsys):
+        """Test info logging without mitmproxy context."""
+        tracker._use_ctx = False
+        tracker._log("info", "test message")
+        captured = capsys.readouterr()
+        assert "[INFO] test message" in captured.out
+
+    def test_log_warn_without_ctx(self, tracker, capsys):
+        """Test warning log without context."""
+        tracker._use_ctx = False
+        tracker._log("warn", "warning message")
+        captured = capsys.readouterr()
+        assert "[WARN] warning message" in captured.out
+
+    def test_log_error_without_ctx(self, tracker, capsys):
+        """Test error log without context."""
+        tracker._use_ctx = False
+        tracker._log("error", "error message")
+        captured = capsys.readouterr()
+        assert "[ERROR] error message" in captured.out
+
+    def test_log_with_ctx_fallback(self, tracker, capsys):
+        """Test logging falls back when ctx raises exception."""
+        tracker._use_ctx = True
+        # ctx.log will raise because we're not in mitmproxy
+        tracker._log("info", "fallback message")
+        captured = capsys.readouterr()
+        assert "fallback message" in captured.out
+
+
+class TestDoneMethod:
+    """Test done() method."""
+
+    def test_done_writes_report(self, tracker):
+        """Test done() writes report to file."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tracker.output_file = str(Path(tmpdir) / "report.json")
+            tracker.done()
+            assert Path(tracker.output_file).exists()
+            with open(tracker.output_file) as f:
+                data = json.load(f)
+            assert "summary" in data
+            assert "flows" in data
+
+    def test_done_creates_parent_dirs(self, tracker):
+        """Test done() creates parent directories."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tracker.output_file = str(Path(tmpdir) / "subdir" / "nested" / "report.json")
+            tracker.done()
+            assert Path(tracker.output_file).exists()
+
+    def test_done_handles_write_error(self, tracker, capsys):
+        """Test done() handles write errors gracefully."""
+        with patch("builtins.open", side_effect=OSError("Mocked write error")):
+            tracker.done()
+        captured = capsys.readouterr()
+        assert "Failed to save" in captured.out or "ERROR" in captured.out
+
+
+class TestPrintSummary:
+    """Test print_summary() method."""
+
+    def test_print_summary_empty(self, tracker, capsys):
+        """Test summary with no data."""
+        tracker.print_summary()
+        captured = capsys.readouterr()
+        assert "Summary" in captured.out
+        assert "Total unique IDs tracked: 0" in captured.out
+
+    def test_print_summary_with_potential_idor(self, tracker, capsys):
+        """Test summary shows potential IDOR."""
+        tracker._record_id(IDOccurrence(
+            id_value="99999", id_type="numeric",
+            location="path", field_name=None,
+            url="https://api.example.com/admin/99999",
+            method="DELETE", timestamp="t1",
+            direction="request",
+        ))
+        tracker.print_summary()
+        captured = capsys.readouterr()
+        assert "Potential IDOR" in captured.out
+        assert "99999" in captured.out
+
+
+class TestMitmproxyFlowMocking:
+    """Test request/response methods with mocked flows."""
+
+    def test_request_basic(self, tracker):
+        """Test request() processes basic flow."""
+        flow = MagicMock()
+        flow.id = "test-flow-1"
+        flow.request.pretty_url = "https://api.example.com/users/12345"
+        flow.request.method = "GET"
+        flow.request.headers = MockHeaders({"content-type": "application/json"})
+        flow.request.content = b"{}"
+
+        tracker.request(flow)
+
+        assert "test-flow-1" in tracker.flow_records
+        assert "12345" in tracker.tracked_ids
+
+    def test_request_with_body(self, tracker):
+        """Test request() extracts IDs from body."""
+        flow = MagicMock()
+        flow.id = "test-flow-2"
+        flow.request.pretty_url = "https://api.example.com/users"
+        flow.request.method = "POST"
+        flow.request.headers = MockHeaders({"content-type": "application/json"})
+        flow.request.content = b'{"user_id": 67890}'
+
+        tracker.request(flow)
+
+        assert "67890" in tracker.tracked_ids
+
+    def test_request_domain_filtered(self):
+        """Test request() filters domains."""
+        config = IdotakuConfig(target_domains=["allowed.com"])
+        tracker = IDTracker(config)
+        tracker._use_ctx = False
+
+        flow = MagicMock()
+        flow.id = "filtered-flow"
+        flow.request.pretty_url = "https://blocked.com/api/12345"
+        flow.request.method = "GET"
+        flow.request.headers = MockHeaders({})
+        flow.request.content = b""
+
+        tracker.request(flow)
+
+        assert "filtered-flow" not in tracker.flow_records
+
+    def test_request_extension_filtered(self, tracker):
+        """Test request() filters static files."""
+        flow = MagicMock()
+        flow.id = "css-flow"
+        flow.request.pretty_url = "https://api.example.com/style.css"
+        flow.request.method = "GET"
+        flow.request.headers = MockHeaders({})
+        flow.request.content = b""
+
+        tracker.request(flow)
+
+        assert "css-flow" not in tracker.flow_records
+
+    def test_request_with_auth_context(self, tracker):
+        """Test request() extracts auth context."""
+        flow = MagicMock()
+        flow.id = "auth-flow"
+        flow.request.pretty_url = "https://api.example.com/users"
+        flow.request.method = "GET"
+        flow.request.headers = MockHeaders({
+            "authorization": "Bearer test_token_123",
+            "content-type": "application/json",
+        })
+        flow.request.content = b""
+
+        tracker.request(flow)
+
+        assert tracker.flow_records["auth-flow"].auth_context is not None
+        assert tracker.flow_records["auth-flow"].auth_context["auth_type"] == "Bearer"
+
+    def test_response_basic(self, tracker):
+        """Test response() processes basic flow."""
+        # First create flow via request
+        flow = MagicMock()
+        flow.id = "resp-flow"
+        flow.request.pretty_url = "https://api.example.com/users"
+        flow.request.method = "POST"
+        flow.request.headers = MockHeaders({"content-type": "application/json"})
+        flow.request.content = b"{}"
+        tracker.request(flow)
+
+        # Then process response
+        flow.response.headers = MockHeaders({"content-type": "application/json"})
+        flow.response.content = b'{"id": 55555}'
+        tracker.response(flow)
+
+        assert "55555" in tracker.tracked_ids
+        assert tracker.tracked_ids["55555"].origin is not None
+
+    def test_response_creates_flow_if_missing(self, tracker):
+        """Test response() creates flow if not exists."""
+        flow = MagicMock()
+        flow.id = "response-only"
+        flow.request.pretty_url = "https://api.example.com/data"
+        flow.request.method = "GET"
+        flow.response.headers = MockHeaders({"content-type": "application/json"})
+        flow.response.content = b'{"result": 77777}'
+
+        tracker.response(flow)
+
+        assert "response-only" in tracker.flow_records
+        assert "77777" in tracker.tracked_ids
+
+    def test_full_request_response_cycle(self, tracker):
+        """Test full request-response cycle with IDOR detection."""
+        # Request with unknown ID (potential IDOR)
+        req_flow = MagicMock()
+        req_flow.id = "idor-flow"
+        req_flow.request.pretty_url = "https://api.example.com/admin/88888"
+        req_flow.request.method = "DELETE"
+        req_flow.request.headers = MockHeaders({})
+        req_flow.request.content = b""
+        tracker.request(req_flow)
+
+        report = tracker.generate_report()
+        idor_values = [i["id_value"] for i in report["potential_idor"]]
+        assert "88888" in idor_values
+
+
+class TestApplyConfig:
+    """Test _apply_config() method."""
+
+    def test_apply_custom_config(self):
+        """Test applying custom config."""
+        config = IdotakuConfig(
+            output="custom.json",
+            min_numeric=500,
+            target_domains=["api.test.com"],
+        )
+        tracker = IDTracker(config)
+
+        assert tracker.output_file == "custom.json"
+        assert tracker.min_numeric == 500
+        assert "api.test.com" in tracker.target_domains
+
+    def test_reapply_config(self, tracker):
+        """Test reapplying config updates values."""
+        new_config = IdotakuConfig(min_numeric=1000)
+        tracker._apply_config(new_config)
+
+        assert tracker.min_numeric == 1000

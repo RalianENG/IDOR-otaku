@@ -225,7 +225,7 @@ def prompt_proxy_settings() -> dict | None:
 def run_interactive_mode():
     """Run the interactive CLI mode."""
     from rich.console import Console
-    from .report import load_report
+    from .report import load_report, ReportLoadError
 
     console = Console()
     console.print()
@@ -279,8 +279,8 @@ def run_interactive_mode():
 
             # Load report to get domain info
             try:
-                data = load_report(report_file)
-            except Exception as e:
+                data = load_report(report_file, exit_on_error=False)
+            except ReportLoadError as e:
                 console.print(f"[red]Error loading report: {e}[/red]")
                 continue
 

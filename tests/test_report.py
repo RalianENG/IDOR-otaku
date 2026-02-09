@@ -4,6 +4,7 @@ import pytest
 
 from idotaku.report import (
     load_report,
+    ReportLoadError,
     ReportData,
     ReportSummary,
     build_param_producer_consumer,
@@ -176,3 +177,25 @@ class TestBuildIdTransitionMap:
 
         assert len(id_to_origin) == 0
         assert len(id_to_usage) == 0
+
+
+class TestLoadReportWithExitOnError:
+    """Tests for load_report with exit_on_error parameter."""
+
+    def test_raises_on_nonexistent_file(self, tmp_path):
+        """Test that ReportLoadError is raised for nonexistent file."""
+        with pytest.raises(ReportLoadError, match="Cannot read"):
+            load_report(tmp_path / "nonexistent.json", exit_on_error=False)
+
+    def test_raises_on_invalid_json(self, tmp_path):
+        """Test that ReportLoadError is raised for invalid JSON."""
+        bad_file = tmp_path / "bad.json"
+        bad_file.write_text("not valid json{{{")
+        with pytest.raises(ReportLoadError, match="Invalid JSON"):
+            load_report(bad_file, exit_on_error=False)
+
+    def test_returns_data_on_success(self, sample_report_file):
+        """Test successful load with exit_on_error=False."""
+        data = load_report(sample_report_file, exit_on_error=False)
+        assert isinstance(data, ReportData)
+        assert data.summary.total_unique_ids == 5

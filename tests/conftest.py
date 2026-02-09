@@ -1,8 +1,6 @@
 """Pytest fixtures for idotaku tests."""
 
 import json
-import tempfile
-from pathlib import Path
 
 import pytest
 
