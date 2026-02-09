@@ -1,7 +1,7 @@
 # IDOR-otaku (idotaku)
 
 [![CI](https://github.com/RalianENG/IDOR-otaku/actions/workflows/ci.yml/badge.svg)](https://github.com/RalianENG/IDOR-otaku/actions/workflows/ci.yml)
-[![Coverage](https://img.shields.io/badge/coverage-83%25-brightgreen)](https://github.com/RalianENG/IDOR-otaku)
+[![Coverage](https://img.shields.io/badge/coverage-90%25-brightgreen)](https://github.com/RalianENG/IDOR-otaku)
 [![PyPI version](https://img.shields.io/pypi/v/idotaku)](https://pypi.org/project/idotaku/)
 [![Python](https://img.shields.io/pypi/pyversions/idotaku)](https://pypi.org/project/idotaku/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -80,6 +80,19 @@ idotaku import-har capture.har -o report.json
 | `diff` | Compare two reports and show changes |
 | `interactive` | Launch interactive mode with guided menus |
 
+### Configuration
+
+| Command | Description |
+|---------|-------------|
+| `config init` | Create default `idotaku.yaml` in the current directory |
+| `config show` | Show effective configuration (defaults + config file) |
+| `config get <key>` | Get a single config value (supports dotted keys: `patterns.uuid`) |
+| `config set <key> <value>` | Set a config value in the YAML file |
+| `config validate` | Validate config file syntax, types, and regex patterns |
+| `config path` | Print the path to the active config file |
+
+Interactive mode (`-i`) also provides a guided **setup wizard** for editing settings.
+
 ### Import & Export
 
 | Command | Description |
@@ -113,9 +126,9 @@ diff = diff_reports(load_report("old.json"), load_report("new.json"))
 
 ## Documentation
 
-- [Quick Start Guide](docs/QUICKSTART.md)
-- [Specification](docs/SPECIFICATION.md)
-- [日本語 / Japanese README](docs/README_ja.md)
+- [Quick Start Guide](https://github.com/RalianENG/IDOR-otaku/blob/main/docs/QUICKSTART.md)
+- [Specification](https://github.com/RalianENG/IDOR-otaku/blob/main/docs/SPECIFICATION.md)
+- [日本語 / Japanese README](https://github.com/RalianENG/IDOR-otaku/blob/main/docs/README_ja.md)
 
 ## Contributing
 

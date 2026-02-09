@@ -2,7 +2,14 @@
 
 import pytest
 
-from idotaku.config import IdotakuConfig, load_config, get_default_config_yaml
+from idotaku.config import (
+    IdotakuConfig,
+    find_config_path,
+    get_default_config_yaml,
+    load_config,
+    save_config_value,
+    validate_config,
+)
 
 
 class TestIdotakuConfigDefaults:
@@ -399,3 +406,186 @@ class TestLoadConfigAutoDiscovery:
         config = load_config(None)
         assert isinstance(config, IdotakuConfig)
         assert config.output == "id_tracker_report.json"
+
+
+class TestFindConfigPath:
+    """Tests for find_config_path function."""
+
+    def test_finds_idotaku_yaml(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        (tmp_path / "idotaku.yaml").write_text("idotaku:\n  output: test.json\n")
+        result = find_config_path()
+        assert result is not None
+        assert result.name == "idotaku.yaml"
+
+    def test_finds_idotaku_yml(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        (tmp_path / "idotaku.yml").write_text("idotaku:\n  output: test.json\n")
+        result = find_config_path()
+        assert result is not None
+        assert result.name == "idotaku.yml"
+
+    def test_finds_hidden_config(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        (tmp_path / ".idotaku.yaml").write_text("idotaku:\n  output: test.json\n")
+        result = find_config_path()
+        assert result is not None
+        assert result.name == ".idotaku.yaml"
+
+    def test_no_config_returns_none(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        assert find_config_path() is None
+
+    def test_priority_order(self, tmp_path, monkeypatch):
+        """idotaku.yaml takes priority over idotaku.yml."""
+        monkeypatch.chdir(tmp_path)
+        (tmp_path / "idotaku.yaml").write_text("a")
+        (tmp_path / "idotaku.yml").write_text("b")
+        result = find_config_path()
+        assert result.name == "idotaku.yaml"
+
+
+class TestSaveConfigValue:
+    """Tests for save_config_value function."""
+
+    def test_set_string_value(self, tmp_path):
+        cfg = tmp_path / "idotaku.yaml"
+        cfg.write_text("idotaku:\n  output: old.json\n")
+        save_config_value(cfg, "output", "new.json")
+        config = load_config(cfg)
+        assert config.output == "new.json"
+
+    def test_set_integer_value(self, tmp_path):
+        cfg = tmp_path / "idotaku.yaml"
+        cfg.write_text("idotaku:\n  min_numeric: 100\n")
+        save_config_value(cfg, "min_numeric", "500")
+        config = load_config(cfg)
+        assert config.min_numeric == 500
+
+    def test_set_boolean_true(self, tmp_path):
+        cfg = tmp_path / "idotaku.yaml"
+        cfg.write_text("idotaku:\n  output: test.json\n")
+        save_config_value(cfg, "some_flag", "true")
+        from ruamel.yaml import YAML
+        yaml = YAML()
+        with open(cfg) as f:
+            data = yaml.load(f)
+        assert data["idotaku"]["some_flag"] is True
+
+    def test_set_boolean_false(self, tmp_path):
+        cfg = tmp_path / "idotaku.yaml"
+        cfg.write_text("idotaku:\n  output: test.json\n")
+        save_config_value(cfg, "some_flag", "false")
+        from ruamel.yaml import YAML
+        yaml = YAML()
+        with open(cfg) as f:
+            data = yaml.load(f)
+        assert data["idotaku"]["some_flag"] is False
+
+    def test_set_list_value(self, tmp_path):
+        cfg = tmp_path / "idotaku.yaml"
+        cfg.write_text("idotaku:\n  target_domains: []\n")
+        save_config_value(cfg, "target_domains", "a.com,b.com")
+        config = load_config(cfg)
+        assert config.target_domains == ["a.com", "b.com"]
+
+    def test_dotted_key_creates_nested(self, tmp_path):
+        cfg = tmp_path / "idotaku.yaml"
+        cfg.write_text("idotaku:\n  output: test.json\n")
+        save_config_value(cfg, "patterns.custom_id", "CID-[0-9]+")
+        config = load_config(cfg)
+        assert "custom_id" in config.patterns
+
+    def test_empty_yaml_file(self, tmp_path):
+        cfg = tmp_path / "idotaku.yaml"
+        cfg.write_text("")
+        save_config_value(cfg, "output", "test.json")
+        from ruamel.yaml import YAML
+        yaml = YAML()
+        with open(cfg) as f:
+            data = yaml.load(f)
+        assert data["output"] == "test.json"
+
+    def test_dotted_key_creates_intermediate(self, tmp_path):
+        """Test dotted key creates intermediate dicts when they don't exist."""
+        cfg = tmp_path / "idotaku.yaml"
+        cfg.write_text("idotaku:\n  output: test.json\n")
+        save_config_value(cfg, "new_section.sub_key", "value")
+        from ruamel.yaml import YAML
+        yaml = YAML()
+        with open(cfg) as f:
+            data = yaml.load(f)
+        assert data["idotaku"]["new_section"]["sub_key"] == "value"
+
+
+class TestValidateConfig:
+    """Tests for validate_config function."""
+
+    def test_valid_default_config(self, tmp_path):
+        cfg = tmp_path / "idotaku.yaml"
+        cfg.write_text(get_default_config_yaml())
+        errors = validate_config(cfg)
+        assert errors == []
+
+    def test_empty_yaml(self, tmp_path):
+        cfg = tmp_path / "idotaku.yaml"
+        cfg.write_text("")
+        errors = validate_config(cfg)
+        assert errors == []
+
+    def test_invalid_yaml_syntax(self, tmp_path):
+        cfg = tmp_path / "bad.yaml"
+        cfg.write_text("invalid: yaml: [unclosed")
+        errors = validate_config(cfg)
+        assert len(errors) == 1
+        assert "Invalid YAML" in errors[0]
+
+    def test_non_dict_config(self, tmp_path):
+        cfg = tmp_path / "list.yaml"
+        cfg.write_text("- item1\n- item2\n")
+        errors = validate_config(cfg)
+        assert len(errors) == 1
+        assert "mapping" in errors[0]
+
+    def test_unknown_keys(self, tmp_path):
+        cfg = tmp_path / "unknown.yaml"
+        cfg.write_text("idotaku:\n  unknown_key: value\n  another_bad: 123\n")
+        errors = validate_config(cfg)
+        assert len(errors) == 2
+        assert any("unknown_key" in e for e in errors)
+
+    def test_invalid_min_numeric(self, tmp_path):
+        cfg = tmp_path / "bad_numeric.yaml"
+        cfg.write_text("idotaku:\n  min_numeric: not_a_number\n")
+        errors = validate_config(cfg)
+        assert any("min_numeric" in e for e in errors)
+
+    def test_patterns_not_dict(self, tmp_path):
+        cfg = tmp_path / "bad_patterns.yaml"
+        cfg.write_text("idotaku:\n  patterns:\n    - pattern1\n")
+        errors = validate_config(cfg)
+        assert any("patterns" in e and "mapping" in e for e in errors)
+
+    def test_invalid_regex_in_patterns(self, tmp_path):
+        cfg = tmp_path / "bad_regex.yaml"
+        cfg.write_text('idotaku:\n  patterns:\n    broken: \'[invalid(\'\n')
+        errors = validate_config(cfg)
+        assert any("regex" in e.lower() for e in errors)
+
+    def test_exclude_patterns_not_list(self, tmp_path):
+        cfg = tmp_path / "bad_exclude.yaml"
+        cfg.write_text('idotaku:\n  exclude_patterns: "not a list"\n')
+        errors = validate_config(cfg)
+        assert any("exclude_patterns" in e for e in errors)
+
+    def test_invalid_exclude_pattern_regex(self, tmp_path):
+        cfg = tmp_path / "bad_exclude_regex.yaml"
+        cfg.write_text("idotaku:\n  exclude_patterns:\n    - '[invalid('\n")
+        errors = validate_config(cfg)
+        assert any("exclude_patterns" in e for e in errors)
+
+    def test_list_field_not_list(self, tmp_path):
+        cfg = tmp_path / "bad_list.yaml"
+        cfg.write_text('idotaku:\n  target_domains: "not a list"\n')
+        errors = validate_config(cfg)
+        assert any("target_domains" in e for e in errors)

@@ -15,10 +15,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - **CSV Export**: `csv` command exports IDOR candidates or flow records to CSV for spreadsheet analysis
 - **SARIF Export**: `sarif` command exports findings to SARIF 2.1.0 format for GitHub Code Scanning and other security tool integrations
 - Programmatic API: all new features are importable (`from idotaku.report import score_all_findings, diff_reports`)
+- **Configuration Management**: `config` command group with `init`, `show`, `get`, `set`, `validate`, `path` subcommands for managing `idotaku.yaml` from the CLI
+- **Interactive Setup Wizard**: config setup wizard in interactive mode (`-i`) for editing settings via questionary prompts
 
 ### Changed
 
-- Interactive mode now includes all new commands (score, diff, auth, csv, sarif, import-har)
+- Interactive mode now includes all new commands (score, diff, auth, csv, sarif, import-har, config)
 - Tracker now captures authentication context (Authorization header, session cookies) per flow
 - Documentation translated to English (QUICKSTART.md, SPECIFICATION.md)
 

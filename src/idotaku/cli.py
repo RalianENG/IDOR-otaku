@@ -16,6 +16,7 @@ from .commands import (
     har_import,
     diff,
     auth,
+    config,
 )
 
 
@@ -62,6 +63,7 @@ main.add_command(score)
 main.add_command(har_import)
 main.add_command(diff)
 main.add_command(auth)
+main.add_command(config)
 
 
 if __name__ == "__main__":

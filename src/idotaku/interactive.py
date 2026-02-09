@@ -37,6 +37,7 @@ COMMANDS = [
     {"value": "auth", "name": "auth        - Analyze auth context & cross-user access"},
     {"value": "csv", "name": "csv         - Export report to CSV"},
     {"value": "sarif", "name": "sarif       - Export findings to SARIF format"},
+    {"value": "config", "name": "config      - Manage config (init/show/validate)"},
 ]
 
 # Analysis commands that require a report file
@@ -225,16 +226,121 @@ def prompt_proxy_settings() -> dict[str, Any] | None:
     }
 
 
+def _run_config_setup(console: Any) -> None:
+    """Run interactive config setup wizard."""
+    from .config import (
+        find_config_path,
+        get_default_config_yaml,
+        load_config,
+        save_config_value,
+    )
+
+    config_path = find_config_path()
+
+    # If no config file, create one first
+    if config_path is None:
+        create = questionary.confirm(
+            "No config file found. Create idotaku.yaml?",
+            default=True,
+            style=STYLE,
+        ).ask()
+        if not create:
+            console.print("[dim]Cancelled.[/dim]")
+            return
+        config_path = Path.cwd() / "idotaku.yaml"
+        config_path.write_text(get_default_config_yaml(), encoding="utf-8")
+        console.print(f"[green]Created:[/green] {config_path}")
+
+    # Load current config
+    cfg = load_config(str(config_path))
+
+    console.print(f"\n[dim]Editing: {config_path}[/dim]\n")
+
+    # Output file
+    output = questionary.text(
+        "Output file:",
+        default=cfg.output,
+        style=STYLE,
+    ).ask()
+    if output is None:
+        console.print("[dim]Cancelled.[/dim]")
+        return
+    if output != cfg.output:
+        save_config_value(config_path, "output", output)
+
+    # Min numeric
+    min_numeric = questionary.text(
+        "Minimum numeric ID value:",
+        default=str(cfg.min_numeric),
+        style=STYLE,
+        validate=lambda v: v.isdigit() or "Must be a number",
+    ).ask()
+    if min_numeric is None:
+        console.print("[dim]Cancelled.[/dim]")
+        return
+    if min_numeric != str(cfg.min_numeric):
+        save_config_value(config_path, "min_numeric", min_numeric)
+
+    # Target domains
+    current_targets = ", ".join(cfg.target_domains) if cfg.target_domains else ""
+    target_domains = questionary.text(
+        "Target domains (comma-separated, empty=all):",
+        default=current_targets,
+        style=STYLE,
+    ).ask()
+    if target_domains is None:
+        console.print("[dim]Cancelled.[/dim]")
+        return
+    if target_domains != current_targets:
+        if target_domains.strip():
+            save_config_value(config_path, "target_domains", target_domains)
+        else:
+            save_config_value(config_path, "target_domains", "")
+
+    # Exclude domains
+    current_excludes = ", ".join(cfg.exclude_domains) if cfg.exclude_domains else ""
+    exclude_domains = questionary.text(
+        "Exclude domains (comma-separated, empty=none):",
+        default=current_excludes,
+        style=STYLE,
+    ).ask()
+    if exclude_domains is None:
+        console.print("[dim]Cancelled.[/dim]")
+        return
+    if exclude_domains != current_excludes:
+        if exclude_domains.strip():
+            save_config_value(config_path, "exclude_domains", exclude_domains)
+        else:
+            save_config_value(config_path, "exclude_domains", "")
+
+    # Extra ignore headers
+    current_headers = ", ".join(cfg.extra_ignore_headers) if cfg.extra_ignore_headers else ""
+    extra_headers = questionary.text(
+        "Extra headers to ignore (comma-separated, empty=none):",
+        default=current_headers,
+        style=STYLE,
+    ).ask()
+    if extra_headers is None:
+        console.print("[dim]Cancelled.[/dim]")
+        return
+    if extra_headers != current_headers:
+        if extra_headers.strip():
+            save_config_value(config_path, "extra_ignore_headers", extra_headers)
+        else:
+            save_config_value(config_path, "extra_ignore_headers", "")
+
+    console.print(f"\n[green]Config saved:[/green] {config_path}")
+
+
 def run_interactive_mode() -> None:
     """Run the interactive CLI mode."""
     from rich.console import Console
     from .report import load_report, ReportLoadError
 
     console = Console()
-    console.print()
-    console.print("[bold cyan]idotaku[/bold cyan] - Interactive Mode")
-    console.print("[dim]API ID tracking tool for security testing[/dim]")
-    console.print()
+    from .banner import print_banner
+
+    print_banner(console)
 
     while True:
         # Select command
@@ -271,6 +377,48 @@ def run_interactive_mode() -> None:
             )
             # After proxy stops, don't continue loop
             break
+
+        # Handle config command
+        if command == "config":
+            config_action = questionary.select(
+                "Config action:",
+                choices=[
+                    {"value": "setup", "name": "setup    - Edit settings interactively"},
+                    {"value": "init", "name": "init     - Create default config file"},
+                    {"value": "show", "name": "show     - Show effective configuration"},
+                    {"value": "validate", "name": "validate - Validate config file"},
+                ],
+                style=STYLE,
+            ).ask()
+
+            if config_action is None:
+                console.print("\n[dim]Cancelled.[/dim]")
+                break
+
+            if config_action == "setup":
+                _run_config_setup(console)
+                console.print()
+                if not prompt_continue():
+                    break
+                continue
+
+            args = ["config", config_action]
+            console.print()
+            console.print(f"[dim]Running: idotaku {' '.join(args)}[/dim]")
+            console.print()
+
+            import click
+            from .cli import main
+            from click.testing import CliRunner
+
+            runner = CliRunner()
+            result = runner.invoke(main, args, catch_exceptions=False, color=True)
+            click.echo(result.output, nl=False)
+
+            console.print()
+            if not prompt_continue():
+                break
+            continue
 
         # Analysis commands require report file
         if command in ANALYSIS_COMMANDS:
@@ -315,12 +463,13 @@ def run_interactive_mode() -> None:
             console.print(f"[dim]Running: idotaku {' '.join(args[1:])}[/dim]")
             console.print()
 
+            import click
             from .cli import main
             from click.testing import CliRunner
 
             runner = CliRunner()
-            result = runner.invoke(main, args, catch_exceptions=False)
-            console.print(result.output)
+            result = runner.invoke(main, args, catch_exceptions=False, color=True)
+            click.echo(result.output, nl=False)
 
             # Continue?
             console.print()

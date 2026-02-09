@@ -1,0 +1,10 @@
+# idotaku config for vulnerable API testing
+# Usage: idotaku --port 8080 -o test_report.json -c idotaku.yaml
+
+idotaku:
+  output: test_report.json
+
+  # Only track traffic to the vulnerable API server
+  target_domains:
+    - localhost
+    - "127.0.0.1"

@@ -13,6 +13,7 @@ from .score_cmd import score
 from .har_cmd import har_import
 from .diff_cmd import diff
 from .auth_cmd import auth
+from .config_cmd import config
 
 __all__ = [
     "run_proxy",
@@ -28,4 +29,5 @@ __all__ = [
     "har_import",
     "diff",
     "auth",
+    "config",
 ]

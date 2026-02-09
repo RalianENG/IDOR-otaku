@@ -104,6 +104,17 @@ idotaku auth
 | `idotaku auth` | Auth context analysis (cross-user access detection) |
 | `idotaku diff A.json B.json` | Compare two reports |
 
+### Configuration
+
+| Command | Description |
+|---------|-------------|
+| `idotaku config init` | Create default `idotaku.yaml` in the current directory |
+| `idotaku config show` | Show effective configuration (defaults + config file) |
+| `idotaku config get <key>` | Get a single config value (e.g. `patterns.uuid`) |
+| `idotaku config set <key> <value>` | Set a config value in the YAML file |
+| `idotaku config validate` | Validate config file for errors |
+| `idotaku config path` | Print path to the active config file |
+
 ### Import & Export
 
 | Command | Description |
@@ -197,6 +208,14 @@ idotaku --browser chrome
 idotaku --config ./my-config.yaml
 idotaku -c idotaku.yaml
 
+# Configuration management
+idotaku config init                    # Create default idotaku.yaml
+idotaku config show                    # Show current settings
+idotaku config get min_numeric         # Get a single value
+idotaku config set min_numeric 50      # Set a value
+idotaku config set target_domains "api.example.com,*.test.com"
+idotaku config validate                # Check for errors
+
 # Chain analysis (domain filter)
 idotaku chain --domains "api.example.com"
 
@@ -244,8 +263,10 @@ idotaku sarif report.json -o findings.sarif.json
 To customize settings, create a config file:
 
 ```bash
-cp idotaku.example.yaml idotaku.yaml
+idotaku config init
 ```
+
+Or manually:
 
 Or specify a config file at any location:
 

@@ -61,6 +61,7 @@ idotaku/
         │   ├── auth_cmd.py       # Auth context analysis
         │   ├── csv_cmd.py        # CSV export
         │   ├── sarif_cmd.py      # SARIF export
+        │   ├── config_cmd.py     # Configuration management
         │   └── interactive_cmd.py  # Interactive mode
         ├── export/         # Export modules
         │   ├── chain_exporter.py    # Chain HTML output
@@ -344,6 +345,23 @@ idotaku [OPTIONS]
 | `--browser` | | auto | Browser to use (chrome/edge/firefox/auto) |
 | `--config` | `-c` | none | Config file path |
 | `--interactive` | `-i` | false | Launch in interactive mode |
+
+### config - Configuration Management
+
+```bash
+idotaku config [SUBCOMMAND]
+```
+
+| Subcommand | Description |
+|------------|-------------|
+| `init` | Create default `idotaku.yaml` (`--force` to overwrite, `--filename` for custom name) |
+| `show` | Show effective configuration with syntax highlighting (`-c` for specific file) |
+| `get <key>` | Get a single value by key (supports dotted keys: `patterns.uuid`) |
+| `set <key> <value>` | Set a value in the YAML file (comma-separated for list fields) |
+| `validate` | Validate config file (YAML syntax, types, regex patterns, unknown keys) |
+| `path` | Print the resolved path to the active config file |
+
+In interactive mode (`-i`), the config menu also provides a **setup wizard** that walks through key settings using questionary prompts.
 
 ### report - Summary Display
 

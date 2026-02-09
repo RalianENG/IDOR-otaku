@@ -3,11 +3,12 @@
 import click
 from rich.console import Console
 
+from ..banner import print_banner
+
 console = Console()
 
 
 @click.command()
 def version():
     """Show version."""
-    from idotaku import __version__
-    console.print(f"idotaku {__version__}")
+    print_banner(console)

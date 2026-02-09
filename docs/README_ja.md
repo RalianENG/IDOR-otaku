@@ -78,6 +78,19 @@ idotaku import-har capture.har -o report.json
 | `diff` | 2つのレポートの差分比較 |
 | `interactive` | 対話モード（メニュー選択式） |
 
+### 設定
+
+| コマンド | 説明 |
+|----------|------|
+| `config init` | デフォルトの `idotaku.yaml` をカレントディレクトリに作成 |
+| `config show` | 現在有効な設定を表示（デフォルト値 + 設定ファイルのマージ結果） |
+| `config get <key>` | 指定キーの設定値を取得（ドットキー対応: `patterns.uuid`） |
+| `config set <key> <value>` | 設定値を変更（リスト型はカンマ区切り） |
+| `config validate` | 設定ファイルの構文・型・正規表現を検証 |
+| `config path` | 使用中の設定ファイルのパスを表示 |
+
+対話モード（`-i`）では **setup ウィザード** で設定を対話的に編集できます。
+
 ### インポート & エクスポート
 
 | コマンド | 説明 |
