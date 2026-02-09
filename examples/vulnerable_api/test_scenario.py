@@ -10,7 +10,7 @@ Usage:
     python server.py
 
     # Terminal 2: Start idotaku proxy
-    idotaku --port 8080 -o test_report.json
+    idotaku --port 8080 -o test_report.json -c idotaku.yaml
 
     # Terminal 3: Run this script
     python test_scenario.py

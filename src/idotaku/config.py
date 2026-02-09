@@ -195,7 +195,7 @@ def save_config_value(config_path: Path, key: str, value: str) -> None:
     For list values, the value string is split on commas.
     """
     yaml = YAML()
-    yaml.preserve_quotes = True  # type: ignore[assignment]
+    yaml.preserve_quotes = True
 
     with open(config_path, "r", encoding="utf-8") as f:
         data = yaml.load(f)
