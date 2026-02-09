@@ -80,6 +80,19 @@ idotaku import-har capture.har -o report.json
 | `diff` | Compare two reports and show changes |
 | `interactive` | Launch interactive mode with guided menus |
 
+### Configuration
+
+| Command | Description |
+|---------|-------------|
+| `config init` | Create default `idotaku.yaml` in the current directory |
+| `config show` | Show effective configuration (defaults + config file) |
+| `config get <key>` | Get a single config value (supports dotted keys: `patterns.uuid`) |
+| `config set <key> <value>` | Set a config value in the YAML file |
+| `config validate` | Validate config file syntax, types, and regex patterns |
+| `config path` | Print the path to the active config file |
+
+Interactive mode (`-i`) also provides a guided **setup wizard** for editing settings.
+
 ### Import & Export
 
 | Command | Description |

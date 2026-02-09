@@ -158,23 +158,148 @@ class IdotakuConfig:
         return True
 
 
+CONFIG_SEARCH_PATHS = [
+    "idotaku.yaml",
+    "idotaku.yml",
+    ".idotaku.yaml",
+    ".idotaku.yml",
+]
+
+LIST_FIELDS = {
+    "exclude_patterns", "trackable_content_types",
+    "extra_ignore_headers", "target_domains",
+    "exclude_domains", "exclude_extensions",
+}
+
+KNOWN_KEYS = {
+    "output", "min_numeric", "patterns", "exclude_patterns",
+    "trackable_content_types", "ignore_headers",
+    "extra_ignore_headers", "target_domains",
+    "exclude_domains", "exclude_extensions",
+}
+
+
+def find_config_path() -> Path | None:
+    """Find the active config file path, or None if no config file exists."""
+    for name in CONFIG_SEARCH_PATHS:
+        path = Path.cwd() / name
+        if path.exists():
+            return path
+    return None
+
+
+def save_config_value(config_path: Path, key: str, value: str) -> None:
+    """Set a single key in the YAML config file (round-trip, preserving comments).
+
+    Supports dotted keys like 'patterns.uuid' for nested dicts.
+    For list values, the value string is split on commas.
+    """
+    yaml = YAML()
+    yaml.preserve_quotes = True  # type: ignore[assignment]
+
+    with open(config_path, "r", encoding="utf-8") as f:
+        data = yaml.load(f)
+
+    if data is None:
+        data = {}
+
+    # Navigate to the idotaku section
+    target = data
+    if "idotaku" in data:
+        target = data["idotaku"]
+
+    # Handle dotted keys (e.g. "patterns.uuid")
+    parts = key.split(".")
+    for part in parts[:-1]:
+        if part not in target or not isinstance(target[part], dict):
+            target[part] = {}
+        target = target[part]
+
+    final_key = parts[-1]
+
+    if final_key in LIST_FIELDS:
+        target[final_key] = [v.strip() for v in value.split(",")]
+    else:
+        try:
+            target[final_key] = int(value)
+        except ValueError:
+            if value.lower() in ("true", "false"):
+                target[final_key] = value.lower() == "true"
+            else:
+                target[final_key] = value
+
+    with open(config_path, "w", encoding="utf-8") as f:
+        yaml.dump(data, f)
+
+
+def validate_config(config_path: Path) -> list[str]:
+    """Validate a config file and return a list of error messages (empty = valid)."""
+    errors: list[str] = []
+
+    try:
+        yaml = YAML()
+        with open(config_path, "r", encoding="utf-8") as f:
+            data = yaml.load(f)
+    except YAMLError as e:
+        return [f"Invalid YAML syntax: {e}"]
+    except OSError as e:
+        return [f"Cannot read file: {e}"]
+
+    if data is None:
+        return []
+
+    if isinstance(data, dict) and "idotaku" in data:
+        data = data["idotaku"]
+
+    if not isinstance(data, dict):
+        return [f"Config must be a YAML mapping, got {type(data).__name__}"]
+
+    for key in data:
+        if key not in KNOWN_KEYS:
+            errors.append(f"Unknown key: '{key}'")
+
+    if "min_numeric" in data:
+        try:
+            int(data["min_numeric"])
+        except (ValueError, TypeError):
+            errors.append(f"'min_numeric' must be an integer, got: {data['min_numeric']}")
+
+    if "patterns" in data:
+        if not isinstance(data["patterns"], dict):
+            errors.append("'patterns' must be a mapping (name: regex)")
+        else:
+            for name, pattern in data["patterns"].items():
+                try:
+                    re.compile(str(pattern))
+                except re.error as e:
+                    errors.append(f"Invalid regex in patterns.{name}: {e}")
+
+    if "exclude_patterns" in data:
+        if not isinstance(data["exclude_patterns"], list):
+            errors.append("'exclude_patterns' must be a list")
+        else:
+            for i, p in enumerate(data["exclude_patterns"]):
+                try:
+                    re.compile(str(p))
+                except re.error as e:
+                    errors.append(f"Invalid regex in exclude_patterns[{i}]: {e}")
+
+    for list_key in ("trackable_content_types", "extra_ignore_headers",
+                     "target_domains", "exclude_domains", "exclude_extensions",
+                     "ignore_headers"):
+        if list_key in data and not isinstance(data[list_key], list):
+            errors.append(f"'{list_key}' must be a list")
+
+    return errors
+
+
 def load_config(config_path: str | Path | None = None) -> IdotakuConfig:
     """Load configuration file."""
     config = IdotakuConfig()
     explicit = config_path is not None
 
     if config_path is None:
-        # Search for default config file paths
-        search_paths = [
-            Path.cwd() / "idotaku.yaml",
-            Path.cwd() / "idotaku.yml",
-            Path.cwd() / ".idotaku.yaml",
-            Path.cwd() / ".idotaku.yml",
-        ]
-        for path in search_paths:
-            if path.exists():
-                config_path = path
-                break
+        config_path = find_config_path()
 
     if config_path is None:
         return config  # Return default config
@@ -285,7 +410,7 @@ def load_config(config_path: str | Path | None = None) -> IdotakuConfig:
 
 def get_default_config_yaml() -> str:
     """Return default YAML config template."""
-    return '''# idotaku configuration
+    return r'''# idotaku configuration
 # Place this file as idotaku.yaml in your working directory
 
 idotaku:
@@ -298,17 +423,17 @@ idotaku:
   # ID detection patterns (name: regex)
   # These patterns are used to extract IDs from requests/responses
   patterns:
-    uuid: "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
-    numeric: "[1-9]\\d{2,10}"
-    token: "[A-Za-z0-9_-]{20,}"
+    uuid: '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
+    numeric: '[1-9]\d{2,10}'
+    token: '[A-Za-z0-9_-]{20,}'
     # Add custom patterns here:
-    # order_id: "ORD-[A-Z]{2}-\\d{8}"
-    # custom_id: "ID-[A-Z]{3}-\\d{6}"
+    # order_id: 'ORD-[A-Z]{2}-\d{8}'
+    # custom_id: 'ID-[A-Z]{3}-\d{6}'
 
   # Patterns to exclude from ID detection (false positives)
   exclude_patterns:
-    - "^\\d{10,13}$"      # Unix timestamp
-    - "^\\d+\\.\\d+\\.\\d+$"  # Version numbers
+    - '^\d{10,13}$'      # Unix timestamp
+    - '^\d+\.\d+\.\d+$'  # Version numbers
 
   # Content types to parse for IDs
   trackable_content_types:
