@@ -1,8 +1,10 @@
 """Chain tree HTML exporter for idotaku."""
 
+from __future__ import annotations
+
 import json
 from pathlib import Path
-from typing import Union
+from typing import Any, Union
 from urllib.parse import urlparse
 
 from ..utils.url import normalize_api_path, extract_domain
@@ -10,7 +12,7 @@ from .html_styles import CHAIN_STYLES
 from .html_scripts import CHAIN_SCRIPTS
 
 
-def _get_flow_details(flow: dict) -> dict:
+def _get_flow_details(flow: dict[str, Any]) -> dict[str, Any]:
     """Get detailed info for a flow."""
     url = flow.get("url", "")
     return {
@@ -24,7 +26,7 @@ def _get_flow_details(flow: dict) -> dict:
     }
 
 
-def _get_api_key(flow: dict) -> str:
+def _get_api_key(flow: dict[str, Any]) -> str:
     """Get API key (method + normalized path) for cycle detection."""
     method = flow.get("method", "?")
     url = flow.get("url", "")
@@ -33,15 +35,15 @@ def _get_api_key(flow: dict) -> str:
 
 def _build_tree_json(
     flow_idx: int,
-    via_params: list,
-    visited_apis: set,
-    node_index_map: dict,
-    index_counter: list,
-    deferred_children: dict,
-    first_occurrence: dict,
-    sorted_flows: list,
-    flow_graph: dict,
-) -> dict:
+    via_params: list[str] | None,
+    visited_apis: set[str],
+    node_index_map: dict[int, int],
+    index_counter: list[int],
+    deferred_children: dict[int | str, list[dict[str, Any]]],
+    first_occurrence: dict[str, int],
+    sorted_flows: list[dict[str, Any]],
+    flow_graph: dict[int, list[tuple[int, list[str]]]],
+) -> dict[str, Any]:
     """Build JSON tree structure for HTML with cycle continuation.
 
     Cycle detection is based on API pattern (method + normalized path), not flow_idx.
@@ -91,14 +93,14 @@ def _build_tree_json(
         if child:
             # If child is a cycle_ref, defer its grandchildren to the cycle target
             if child.get("type") == "cycle_ref":
-                target_index = child.get("target_index")
+                child_target_index: int | str = child.get("target_index", "?")
                 target_idx = child["flow_idx"]
                 for gc_idx, gc_params in flow_graph.get(target_idx, []):
                     gc_flow = sorted_flows[gc_idx]
                     gc_api = _get_api_key(gc_flow)
                     if gc_idx != target_idx and gc_api not in new_visited:
-                        if target_index not in deferred_children:
-                            deferred_children[target_index] = []
+                        if child_target_index not in deferred_children:
+                            deferred_children[child_target_index] = []
                         gc = _build_tree_json(
                             gc_idx,
                             gc_params,
@@ -112,7 +114,7 @@ def _build_tree_json(
                         )
                         if gc:
                             gc["from_cycle"] = True
-                            deferred_children[target_index].append(gc)
+                            deferred_children[child_target_index].append(gc)
             children.append(child)
 
     return {
@@ -132,7 +134,9 @@ def _build_tree_json(
     }
 
 
-def _inject_deferred_children(tree: dict, deferred_children: dict) -> None:
+def _inject_deferred_children(
+    tree: dict[str, Any], deferred_children: dict[int | str, list[dict[str, Any]]]
+) -> None:
     """Inject deferred children into their target nodes."""
     if not tree or tree.get("type") == "cycle_ref":
         return
@@ -152,10 +156,10 @@ def _inject_deferred_children(tree: dict, deferred_children: dict) -> None:
 
 def export_chain_html(
     output_path: Union[str, Path],
-    sorted_flows: list[dict],
-    flow_graph: dict[int, list],
-    flow_produces: dict[int, list],
-    selected_roots: list[tuple],
+    sorted_flows: list[dict[str, Any]],
+    flow_graph: dict[int, list[tuple[int, list[str]]]],
+    flow_produces: dict[int, list[str]],
+    selected_roots: list[tuple[int, int, int, int]],
 ) -> None:
     """Export chain trees to interactive HTML.
 
@@ -167,14 +171,14 @@ def export_chain_html(
         selected_roots: List of (score, depth, nodes, root_idx) tuples
     """
     # Build tree data for all selected roots
-    trees_data = []
+    trees_data: list[dict[str, Any]] = []
     for rank, (score, depth, nodes, root_idx) in enumerate(selected_roots, 1):
         # Initialize tracking for this tree
-        node_index_map = {}
-        index_counter = [1]
-        deferred_children = {}
-        visited_apis = set()
-        first_occurrence = {}
+        node_index_map: dict[int, int] = {}
+        index_counter: list[int] = [1]
+        deferred_children: dict[int | str, list[dict[str, Any]]] = {}
+        visited_apis: set[str] = set()
+        first_occurrence: dict[str, int] = {}
 
         tree = _build_tree_json(
             root_idx,

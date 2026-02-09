@@ -1,9 +1,12 @@
 """Base HTML utilities for export."""
 
+from __future__ import annotations
+
 import html as html_module
+from typing import Any
 
 
-def html_escape(text) -> str:
+def html_escape(text: Any) -> str:
     """Escape text for safe HTML output.
 
     Args:

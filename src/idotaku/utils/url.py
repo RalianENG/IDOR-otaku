@@ -1,5 +1,7 @@
 """URL utility functions."""
 
+from __future__ import annotations
+
 import re
 from urllib.parse import urlparse
 
@@ -20,7 +22,7 @@ def normalize_api_path(url: str) -> str:
     """
     path = urlparse(url).path or "/"
     segments = path.split("/")
-    normalized = []
+    normalized: list[str] = []
 
     for seg in segments:
         if not seg:

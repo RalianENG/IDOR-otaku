@@ -1,12 +1,15 @@
 """ID Tracker core logic."""
 
-import json
+from __future__ import annotations
+
 import hashlib
-from datetime import datetime
+import json
+import re
 from dataclasses import dataclass, field
-from typing import Optional
+from datetime import datetime
 from pathlib import Path
-from urllib.parse import urlparse, parse_qs
+from typing import Any, Optional
+from urllib.parse import parse_qs, urlparse
 
 from mitmproxy import http, ctx
 
@@ -14,7 +17,7 @@ try:
     from .config import load_config, IdotakuConfig
 except ImportError:
     # Direct execution (mitmproxy -s tracker.py)
-    from config import load_config, IdotakuConfig
+    from config import load_config, IdotakuConfig  # type: ignore[no-redef]
 
 
 @dataclass
@@ -69,17 +72,17 @@ class IDTracker:
         # Apply config
         self._apply_config(config or IdotakuConfig())
 
-    def _apply_config(self, config: IdotakuConfig):
+    def _apply_config(self, config: IdotakuConfig) -> None:
         """Apply configuration."""
-        self.config = config
-        self.min_numeric = config.min_numeric
-        self.output_file = config.output
-        self.patterns = config.get_compiled_patterns()
-        self.exclude_patterns = config.get_compiled_exclude_patterns()
-        self.trackable_content_types = config.trackable_content_types
-        self.ignore_headers = config.get_all_ignore_headers()
-        self.target_domains = config.target_domains
-        self.exclude_domains = config.exclude_domains
+        self.config: IdotakuConfig = config
+        self.min_numeric: int = config.min_numeric
+        self.output_file: str = config.output
+        self.patterns: dict[str, re.Pattern[str]] = config.get_compiled_patterns()
+        self.exclude_patterns: list[re.Pattern[str]] = config.get_compiled_exclude_patterns()
+        self.trackable_content_types: list[str] = config.trackable_content_types
+        self.ignore_headers: set[str] = config.get_all_ignore_headers()
+        self.target_domains: list[str] = config.target_domains
+        self.exclude_domains: list[str] = config.exclude_domains
 
     def _should_track_url(self, url: str) -> bool:
         """Check if URL should be tracked (domain and extension filtering)."""
@@ -96,7 +99,7 @@ class IDTracker:
 
         return True
 
-    def load(self, loader):
+    def load(self, loader: Any) -> None:
         """mitmproxy addon loader."""
         loader.add_option(
             name="idotaku_config",
@@ -117,7 +120,7 @@ class IDTracker:
             help="Minimum value for numeric IDs to track (overrides config)",
         )
 
-    def configure(self, updates):
+    def configure(self, updates: set[str]) -> None:
         """mitmproxy configuration update."""
         # Load config file if specified
         if "idotaku_config" in updates:
@@ -136,7 +139,7 @@ class IDTracker:
         if "idotaku_min_numeric" in updates and ctx.options.idotaku_min_numeric > 0:
             self.min_numeric = ctx.options.idotaku_min_numeric
 
-    def _log(self, level: str, message: str):
+    def _log(self, level: str, message: str) -> None:
         """Log message via mitmproxy context or fallback to stdout.
 
         Args:
@@ -186,7 +189,9 @@ class IDTracker:
 
     _MAX_JSON_DEPTH = 50
 
-    def _extract_ids_from_json(self, data, prefix="", _depth=0) -> list[tuple[str, str, str]]:
+    def _extract_ids_from_json(
+        self, data: Any, prefix: str = "", _depth: int = 0
+    ) -> list[tuple[str, str, str]]:
         """Extract IDs and field names from JSON."""
         if _depth >= self._MAX_JSON_DEPTH:
             return []
@@ -209,7 +214,9 @@ class IDTracker:
 
         return found_ids
 
-    def _parse_body(self, content: bytes, content_type: str) -> Optional[dict | str]:
+    def _parse_body(
+        self, content: bytes, content_type: str
+    ) -> dict[str, Any] | list[Any] | str | None:
         """Parse request/response body.
 
         Args:
@@ -217,7 +224,7 @@ class IDTracker:
             content_type: Content-Type header value
 
         Returns:
-            Parsed body as dict (for JSON) or str (for text), or None if parsing fails
+            Parsed body as dict/list (for JSON) or str (for text), or None if parsing fails
         """
         if not content:
             return None
@@ -227,7 +234,8 @@ class IDTracker:
 
         if "application/json" in content_type:
             try:
-                return json.loads(decoded)
+                result: dict[str, Any] | list[Any] = json.loads(decoded)
+                return result
             except json.JSONDecodeError:
                 # Malformed JSON - fall back to plain text for ID extraction
                 return decoded
@@ -238,7 +246,7 @@ class IDTracker:
 
         return decoded
 
-    def _record_id(self, occurrence: IDOccurrence):
+    def _record_id(self, occurrence: IDOccurrence) -> None:
         """Record an ID occurrence."""
         id_value = occurrence.id_value
 
@@ -264,7 +272,7 @@ class IDTracker:
                 f"[ID USAGE] {occurrence.id_type}: {id_value} @ {occurrence.method} {occurrence.url}",
             )
 
-    def _collect_ids_from_url(self, url: str) -> list[dict]:
+    def _collect_ids_from_url(self, url: str) -> list[dict[str, Any]]:
         """Collect IDs from URL and return them."""
         found = []
         parsed = urlparse(url)
@@ -280,9 +288,9 @@ class IDTracker:
 
         return found
 
-    def _collect_ids_from_body(self, body: bytes, content_type: str) -> list[dict]:
+    def _collect_ids_from_body(self, body: bytes, content_type: str) -> list[dict[str, Any]]:
         """Collect IDs from body and return them."""
-        found = []
+        found: list[dict[str, Any]] = []
         parsed = self._parse_body(body, content_type)
         if parsed is None:
             return found
@@ -296,7 +304,7 @@ class IDTracker:
 
         return found
 
-    def _collect_ids_from_headers(self, headers) -> list[dict]:
+    def _collect_ids_from_headers(self, headers: Any) -> list[dict[str, Any]]:
         """Collect IDs from headers and return them (excluding blacklisted headers)."""
         found = []
 
@@ -354,7 +362,7 @@ class IDTracker:
 
         return found
 
-    def _extract_auth_context(self, headers) -> dict | None:
+    def _extract_auth_context(self, headers: Any) -> dict[str, str] | None:
         """Extract authentication context from request headers."""
         auth_header = headers.get("authorization", "")
         if auth_header:
@@ -377,7 +385,7 @@ class IDTracker:
 
         return None
 
-    def _process_url(self, url: str, method: str, direction: str, timestamp: str):
+    def _process_url(self, url: str, method: str, direction: str, timestamp: str) -> None:
         """Extract IDs from URL."""
         parsed = urlparse(url)
 
@@ -414,7 +422,7 @@ class IDTracker:
 
     def _process_body(
         self, body: bytes, content_type: str, url: str, method: str, direction: str, timestamp: str
-    ):
+    ) -> None:
         """Extract IDs from body."""
         parsed = self._parse_body(body, content_type)
         if parsed is None:
@@ -449,7 +457,7 @@ class IDTracker:
                     )
                 )
 
-    def request(self, flow: http.HTTPFlow):
+    def request(self, flow: http.HTTPFlow) -> None:
         """Process request."""
         url = flow.request.pretty_url
 
@@ -476,13 +484,14 @@ class IDTracker:
             self.flow_records[flow_id].auth_context = auth_ctx
 
         # Collect IDs
-        found_ids = []
+        found_ids: list[dict[str, Any]] = []
         found_ids.extend(self._collect_ids_from_url(url))
         found_ids.extend(self._collect_ids_from_headers(flow.request.headers))
 
         content_type = flow.request.headers.get("content-type", "")
         if any(ct in content_type for ct in self.trackable_content_types):
-            found_ids.extend(self._collect_ids_from_body(flow.request.content, content_type))
+            content = flow.request.content or b""
+            found_ids.extend(self._collect_ids_from_body(content, content_type))
 
         # Add to FlowRecord and record in TrackedID
         for id_info in found_ids:
@@ -498,12 +507,16 @@ class IDTracker:
                 direction="request",
             ))
 
-    def response(self, flow: http.HTTPFlow):
+    def response(self, flow: http.HTTPFlow) -> None:
         """Process response."""
         url = flow.request.pretty_url
 
         # Domain filtering
         if not self._should_track_url(url):
+            return
+
+        # Check if response exists
+        if flow.response is None:
             return
 
         timestamp = datetime.now().isoformat()
@@ -520,12 +533,13 @@ class IDTracker:
             )
 
         # Collect IDs
-        found_ids = []
+        found_ids: list[dict[str, Any]] = []
         found_ids.extend(self._collect_ids_from_headers(flow.response.headers))
 
         content_type = flow.response.headers.get("content-type", "")
         if any(ct in content_type for ct in self.trackable_content_types):
-            found_ids.extend(self._collect_ids_from_body(flow.response.content, content_type))
+            content = flow.response.content or b""
+            found_ids.extend(self._collect_ids_from_body(content, content_type))
 
         # Add to FlowRecord and record in TrackedID
         for id_info in found_ids:
@@ -541,7 +555,7 @@ class IDTracker:
                 direction="response",
             ))
 
-    def done(self):
+    def done(self) -> None:
         """Output report on shutdown."""
         report = self.generate_report()
 
@@ -556,23 +570,26 @@ class IDTracker:
 
         self.print_summary()
 
-    def generate_report(self) -> dict:
+    def generate_report(self) -> dict[str, Any]:
         """Generate report."""
-        report = {
+        flows: list[dict[str, Any]] = []
+        tracked_ids: dict[str, dict[str, Any]] = {}
+        potential_idor: list[dict[str, Any]] = []
+        report: dict[str, Any] = {
             "summary": {
                 "total_unique_ids": len(self.tracked_ids),
                 "ids_with_origin": sum(1 for t in self.tracked_ids.values() if t.origin),
                 "ids_with_usage": sum(1 for t in self.tracked_ids.values() if t.usages),
                 "total_flows": len(self.flow_records),
             },
-            "flows": [],
-            "tracked_ids": {},
-            "potential_idor": [],
+            "flows": flows,
+            "tracked_ids": tracked_ids,
+            "potential_idor": potential_idor,
         }
 
         # Per-flow report
         for flow_id, flow_rec in self.flow_records.items():
-            flow_dict = {
+            flow_dict: dict[str, Any] = {
                 "flow_id": flow_rec.flow_id,
                 "method": flow_rec.method,
                 "url": flow_rec.url,
@@ -582,10 +599,10 @@ class IDTracker:
             }
             if flow_rec.auth_context:
                 flow_dict["auth_context"] = flow_rec.auth_context
-            report["flows"].append(flow_dict)
+            flows.append(flow_dict)
 
         for id_value, tracked in self.tracked_ids.items():
-            report["tracked_ids"][id_value] = {
+            tracked_ids[id_value] = {
                 "type": tracked.id_type,
                 "first_seen": tracked.first_seen,
                 "origin": self._occurrence_to_dict(tracked.origin) if tracked.origin else None,
@@ -594,7 +611,7 @@ class IDTracker:
             }
 
             if tracked.usages and not tracked.origin:
-                report["potential_idor"].append(
+                potential_idor.append(
                     {
                         "id_value": id_value,
                         "id_type": tracked.id_type,
@@ -605,7 +622,7 @@ class IDTracker:
 
         return report
 
-    def _occurrence_to_dict(self, occ: IDOccurrence) -> dict:
+    def _occurrence_to_dict(self, occ: IDOccurrence) -> dict[str, Any]:
         """Convert IDOccurrence to dictionary."""
         return {
             "url": occ.url,
@@ -615,7 +632,7 @@ class IDTracker:
             "timestamp": occ.timestamp,
         }
 
-    def print_summary(self):
+    def print_summary(self) -> None:
         """Print summary."""
         self._log("info", "=" * 60)
         self._log("info", "[IDOTAKU] Summary")

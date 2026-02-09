@@ -1,7 +1,10 @@
 """Interactive CLI prompts for idotaku."""
 
+from __future__ import annotations
+
 from pathlib import Path
 from collections import Counter
+from typing import Any, cast
 
 import questionary
 from questionary import Style
@@ -51,7 +54,7 @@ def prompt_command() -> str | None:
         style=STYLE,
         instruction="(↑/↓ to move, Enter to select, Ctrl+C to cancel)",
     ).ask()
-    return result
+    return cast(str | None, result)
 
 
 def prompt_report_file(default: str = "id_tracker_report.json") -> str | None:
@@ -61,11 +64,11 @@ def prompt_report_file(default: str = "id_tracker_report.json") -> str | None:
 
     if not json_files:
         # No JSON files found, ask for path
-        return questionary.path(
+        return cast(str | None, questionary.path(
             "Enter report file path:",
             default=default,
             style=STYLE,
-        ).ask()
+        ).ask())
 
     # Sort by modification time (newest first)
     json_files.sort(key=lambda f: f.stat().st_mtime, reverse=True)
@@ -89,16 +92,16 @@ def prompt_report_file(default: str = "id_tracker_report.json") -> str | None:
     ).ask()
 
     if result == "__other__":
-        return questionary.path(
+        return cast(str | None, questionary.path(
             "Enter report file path:",
             default=default,
             style=STYLE,
-        ).ask()
+        ).ask())
 
-    return result
+    return cast(str | None, result)
 
 
-def prompt_domains(flows: list[dict], min_flows: int = 10) -> list[str] | None:
+def prompt_domains(flows: list[dict[str, Any]], min_flows: int = 10) -> list[str] | None:
     """Prompt user to select domains to filter.
 
     Args:
@@ -109,7 +112,7 @@ def prompt_domains(flows: list[dict], min_flows: int = 10) -> list[str] | None:
         List of selected domains, empty list for no filter, None if cancelled
     """
     # Count domains
-    domain_counts = Counter()
+    domain_counts: Counter[str] = Counter()
     for flow in flows:
         url = flow.get("url", "")
         domain = extract_domain(url)
@@ -148,7 +151,7 @@ def prompt_domains(flows: list[dict], min_flows: int = 10) -> list[str] | None:
     if len(result) == len(choices):
         return []
 
-    return result
+    return cast(list[str], result)
 
 
 def prompt_html_output(default: str = "chain.html") -> str | None:
@@ -162,11 +165,11 @@ def prompt_html_output(default: str = "chain.html") -> str | None:
     if not result:
         return None
 
-    return questionary.path(
+    return cast(str | None, questionary.path(
         "Output file:",
         default=default,
         style=STYLE,
-    ).ask()
+    ).ask())
 
 
 def prompt_continue() -> bool:
@@ -178,7 +181,7 @@ def prompt_continue() -> bool:
     ).ask() or False
 
 
-def prompt_proxy_settings() -> dict | None:
+def prompt_proxy_settings() -> dict[str, Any] | None:
     """Prompt user for proxy settings."""
     # Browser selection
     browser = questionary.select(
@@ -222,7 +225,7 @@ def prompt_proxy_settings() -> dict | None:
     }
 
 
-def run_interactive_mode():
+def run_interactive_mode() -> None:
     """Run the interactive CLI mode."""
     from rich.console import Console
     from .report import load_report, ReportLoadError
@@ -293,7 +296,7 @@ def run_interactive_mode():
 
             # Domain filter for chain command
             if command == "chain":
-                domains = prompt_domains(data.flows)
+                domains = prompt_domains(cast(list[dict[str, Any]], data.flows))
                 if domains is None:
                     console.print("\n[dim]Cancelled.[/dim]")
                     break

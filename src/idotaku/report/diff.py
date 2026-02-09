@@ -1,8 +1,11 @@
 """Diff analysis between two idotaku reports."""
 
-from dataclasses import dataclass, field
+from __future__ import annotations
 
-from .models import ReportData
+from dataclasses import dataclass, field
+from typing import Any
+
+from .models import IDORFindingDict, ReportData
 
 
 @dataclass
@@ -10,9 +13,9 @@ class DiffResult:
     """Structured diff between two reports."""
 
     # IDOR changes
-    new_idor: list[dict] = field(default_factory=list)
-    removed_idor: list[dict] = field(default_factory=list)
-    unchanged_idor: list[dict] = field(default_factory=list)
+    new_idor: list[IDORFindingDict] = field(default_factory=list)
+    removed_idor: list[IDORFindingDict] = field(default_factory=list)
+    unchanged_idor: list[IDORFindingDict] = field(default_factory=list)
 
     # Tracked ID changes
     new_ids: list[str] = field(default_factory=list)
@@ -71,7 +74,7 @@ def diff_reports(report_a: ReportData, report_b: ReportData) -> DiffResult:
     )
 
 
-def diff_to_dict(diff: DiffResult) -> dict:
+def diff_to_dict(diff: DiffResult) -> dict[str, Any]:
     """Convert DiffResult to a serializable dict."""
     return {
         "has_changes": diff.has_changes,

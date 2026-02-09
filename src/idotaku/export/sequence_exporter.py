@@ -1,8 +1,10 @@
 """Sequence diagram HTML exporter for idotaku."""
 
+from __future__ import annotations
+
 import json
 from pathlib import Path
-from typing import Union
+from typing import Any, Union
 from urllib.parse import urlparse
 
 from ..utils.url import normalize_api_path, extract_domain
@@ -10,7 +12,7 @@ from .sequence_styles import SEQUENCE_STYLES
 from .sequence_scripts import SEQUENCE_SCRIPTS
 
 
-def _build_lifeline_key(flow: dict) -> str:
+def _build_lifeline_key(flow: dict[str, Any]) -> str:
     """Build a lifeline key from a flow (domain + normalized path)."""
     url = flow.get("url", "")
     domain = extract_domain(url)
@@ -22,11 +24,11 @@ def _build_lifeline_key(flow: dict) -> str:
 
 
 def _build_sequence_data(
-    sorted_flows: list[dict],
-    tracked_ids: dict,
-    potential_idor: list[dict],
+    sorted_flows: list[dict[str, Any]],
+    tracked_ids: dict[str, dict[str, Any]],
+    potential_idor: list[dict[str, Any]],
     max_lifelines: int = 10,
-) -> dict:
+) -> dict[str, Any]:
     """Build JSON-serializable data for the sequence diagram.
 
     Args:
@@ -101,7 +103,7 @@ def _build_sequence_data(
     idor_values = [item.get("id_value", "") for item in potential_idor]
 
     # Build ID info for summary panel
-    id_info: dict[str, dict] = {}
+    id_info: dict[str, dict[str, Any]] = {}
 
     # Collect all ID values seen across all flows
     for i, flow in enumerate(sorted_flows):
@@ -146,9 +148,9 @@ def _build_sequence_data(
 
 def export_sequence_html(
     output_path: Union[str, Path],
-    sorted_flows: list[dict],
-    tracked_ids: dict,
-    potential_idor: list[dict],
+    sorted_flows: list[dict[str, Any]],
+    tracked_ids: dict[str, dict[str, Any]],
+    potential_idor: list[dict[str, Any]],
 ) -> None:
     """Export sequence diagram to interactive HTML.
 

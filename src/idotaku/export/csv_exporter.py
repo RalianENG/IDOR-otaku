@@ -1,8 +1,10 @@
 """CSV exporter for idotaku reports."""
 
+from __future__ import annotations
+
 import csv
 from pathlib import Path
-from typing import Union
+from typing import Literal, Union
 
 from ..report.models import ReportData
 
@@ -69,7 +71,7 @@ def export_flows_csv(
 def export_csv(
     output_path: Union[str, Path],
     report_data: ReportData,
-    mode: str = "idor",
+    mode: Literal["idor", "flows"] = "idor",
 ) -> None:
     """Export report data to CSV.
 

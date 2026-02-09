@@ -51,6 +51,7 @@ dev = [
     "pytest>=7.0.0",
     "pytest-cov>=4.0.0",
     "ruff>=0.1.0",
+    "mypy>=1.0.0",
 ]
 
 [project.scripts]
@@ -78,3 +79,51 @@ addopts = [
 markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
 ]
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = false
+warn_unused_ignores = true
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+check_untyped_defs = false
+strict_optional = true
+ignore_missing_imports = true
+show_error_codes = true
+
+# Strict mode for core modules (gradually enable for others)
+[[tool.mypy.overrides]]
+module = [
+    "idotaku.report.models",
+    "idotaku.report.loader",
+    "idotaku.report.scoring",
+    "idotaku.report.diff",
+    "idotaku.report.analysis",
+    "idotaku.config",
+    "idotaku.export.csv_exporter",
+    "idotaku.export.sarif_exporter",
+    "idotaku.export.html_base",
+    "idotaku.export.chain_exporter",
+    "idotaku.export.sequence_exporter",
+    "idotaku.import_har",
+    "idotaku.interactive",
+    "idotaku.tracker",
+    "idotaku.utils.url",
+    "idotaku.utils.formatting",
+]
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+warn_return_any = true
+check_untyped_defs = true
+
+# Modules with known issues - TODO: fix and enable strict checking
+[[tool.mypy.overrides]]
+module = [
+    "idotaku.commands.*",
+]
+ignore_errors = true
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false
+check_untyped_defs = false

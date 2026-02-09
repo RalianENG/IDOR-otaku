@@ -1,6 +1,11 @@
 """Risk scoring for IDOR findings."""
 
+from __future__ import annotations
+
 from dataclasses import dataclass, field
+from typing import Final
+
+from .models import IDORFindingDict
 
 
 @dataclass
@@ -13,7 +18,7 @@ class RiskScore:
 
 
 # Scoring weights
-METHOD_WEIGHTS: dict[str, int] = {
+METHOD_WEIGHTS: Final[dict[str, int]] = {
     "DELETE": 30,
     "PUT": 25,
     "PATCH": 20,
@@ -21,7 +26,7 @@ METHOD_WEIGHTS: dict[str, int] = {
     "GET": 5,
 }
 
-LOCATION_WEIGHTS: dict[str, int] = {
+LOCATION_WEIGHTS: Final[dict[str, int]] = {
     "url_path": 20,
     "path": 20,
     "query": 15,
@@ -29,7 +34,7 @@ LOCATION_WEIGHTS: dict[str, int] = {
     "header": 5,
 }
 
-ID_TYPE_WEIGHTS: dict[str, int] = {
+ID_TYPE_WEIGHTS: Final[dict[str, int]] = {
     "numeric": 15,
     "uuid": 5,
     "token": 3,
@@ -48,7 +53,7 @@ def _level_from_score(score: int) -> str:
         return "low"
 
 
-def score_idor_finding(finding: dict) -> RiskScore:
+def score_idor_finding(finding: IDORFindingDict) -> RiskScore:
     """Score a single IDOR finding.
 
     Args:
@@ -105,17 +110,17 @@ def score_idor_finding(finding: dict) -> RiskScore:
     )
 
 
-def score_all_findings(potential_idor: list[dict]) -> list[dict]:
+def score_all_findings(potential_idor: list[IDORFindingDict]) -> list[IDORFindingDict]:
     """Score all IDOR findings and return enriched list.
 
     Returns:
         List with added risk_score, risk_level, risk_factors keys,
         sorted by score descending.
     """
-    scored = []
+    scored: list[IDORFindingDict] = []
     for finding in potential_idor:
         risk = score_idor_finding(finding)
-        enriched = {
+        enriched: IDORFindingDict = {
             **finding,
             "risk_score": risk.score,
             "risk_level": risk.level,

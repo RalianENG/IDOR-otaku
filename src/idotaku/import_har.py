@@ -4,17 +4,19 @@ Parses HAR (HTTP Archive) JSON files and produces the same report
 format as the mitmproxy tracker output.
 """
 
+from __future__ import annotations
+
 import json
 import re
 import uuid
 from pathlib import Path
-from typing import Optional, Union
+from typing import Any, Optional, Union
 from urllib.parse import urlparse, parse_qs
 
 from .config import IdotakuConfig
 
 
-def _should_exclude(value: str, exclude_patterns: list[re.Pattern]) -> bool:
+def _should_exclude(value: str, exclude_patterns: list[re.Pattern[str]]) -> bool:
     """Check if a value should be excluded."""
     for pattern in exclude_patterns:
         if pattern.match(value):
@@ -24,8 +26,8 @@ def _should_exclude(value: str, exclude_patterns: list[re.Pattern]) -> bool:
 
 def _extract_ids_from_text(
     text: str,
-    patterns: dict[str, re.Pattern],
-    exclude_patterns: list[re.Pattern],
+    patterns: dict[str, re.Pattern[str]],
+    exclude_patterns: list[re.Pattern[str]],
     min_numeric: int = 100,
 ) -> list[tuple[str, str]]:
     """Extract IDs from text using compiled patterns.
@@ -50,9 +52,9 @@ def _extract_ids_from_text(
 
 
 def _extract_ids_from_json(
-    data,
-    patterns: dict[str, re.Pattern],
-    exclude_patterns: list[re.Pattern],
+    data: Any,
+    patterns: dict[str, re.Pattern[str]],
+    exclude_patterns: list[re.Pattern[str]],
     min_numeric: int,
     prefix: str = "",
 ) -> list[tuple[str, str, str]]:
@@ -85,10 +87,10 @@ def _extract_ids_from_json(
 
 def _collect_ids_from_url(
     url: str,
-    patterns: dict[str, re.Pattern],
-    exclude_patterns: list[re.Pattern],
+    patterns: dict[str, re.Pattern[str]],
+    exclude_patterns: list[re.Pattern[str]],
     min_numeric: int,
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     """Collect IDs from URL path and query parameters."""
     found = []
     parsed = urlparse(url)
@@ -112,12 +114,12 @@ def _collect_ids_from_url(
 def _collect_ids_from_body(
     body_text: str,
     content_type: str,
-    patterns: dict[str, re.Pattern],
-    exclude_patterns: list[re.Pattern],
+    patterns: dict[str, re.Pattern[str]],
+    exclude_patterns: list[re.Pattern[str]],
     min_numeric: int,
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     """Collect IDs from request/response body."""
-    found = []
+    found: list[dict[str, Any]] = []
     if not body_text:
         return found
 
@@ -143,12 +145,12 @@ def _collect_ids_from_body(
 
 
 def _collect_ids_from_headers(
-    headers: list[dict],
-    patterns: dict[str, re.Pattern],
-    exclude_patterns: list[re.Pattern],
+    headers: list[dict[str, Any]],
+    patterns: dict[str, re.Pattern[str]],
+    exclude_patterns: list[re.Pattern[str]],
     min_numeric: int,
     ignore_headers: set[str],
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     """Collect IDs from HAR-format headers ([{name, value}])."""
     found = []
     for header in headers:
@@ -206,13 +208,13 @@ def _collect_ids_from_headers(
 
 
 def _parse_har_entry(
-    entry: dict,
-    patterns: dict[str, re.Pattern],
-    exclude_patterns: list[re.Pattern],
+    entry: dict[str, Any],
+    patterns: dict[str, re.Pattern[str]],
+    exclude_patterns: list[re.Pattern[str]],
     min_numeric: int,
     ignore_headers: set[str],
     config: IdotakuConfig,
-) -> Optional[dict]:
+) -> Optional[dict[str, Any]]:
     """Parse a single HAR entry into a flow record dict.
 
     Returns:
@@ -278,14 +280,14 @@ def _parse_har_entry(
     }
 
 
-def _build_tracked_ids(flows: list[dict]) -> dict:
+def _build_tracked_ids(flows: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
     """Build tracked_ids dict from flow records.
 
     Follows the same origin/usage logic as IDTracker:
     - Response IDs set the origin (first occurrence)
     - Request IDs are recorded as usages
     """
-    tracked: dict[str, dict] = {}
+    tracked: dict[str, dict[str, Any]] = {}
 
     for flow in flows:
         timestamp = flow.get("timestamp", "")
@@ -340,7 +342,7 @@ def _build_tracked_ids(flows: list[dict]) -> dict:
     return tracked
 
 
-def _build_potential_idor(tracked_ids: dict) -> list[dict]:
+def _build_potential_idor(tracked_ids: dict[str, dict[str, Any]]) -> list[dict[str, Any]]:
     """Build potential_idor list from tracked_ids.
 
     Same logic as IDTracker: IDs used in requests but never seen in responses.
@@ -360,7 +362,7 @@ def _build_potential_idor(tracked_ids: dict) -> list[dict]:
 def import_har(
     har_path: Union[str, Path],
     config: Optional[IdotakuConfig] = None,
-) -> dict:
+) -> dict[str, Any]:
     """Import a HAR file and produce a report dict.
 
     Args:
@@ -419,7 +421,7 @@ def import_har_to_file(
     har_path: Union[str, Path],
     output_path: Union[str, Path],
     config: Optional[IdotakuConfig] = None,
-) -> dict:
+) -> dict[str, Any]:
     """Import HAR and write report JSON file.
 
     Returns:

@@ -27,6 +27,9 @@ jobs:
       - name: Lint
         run: ruff check src/
 
+      - name: Type check
+        run: mypy src/idotaku/
+
       - name: Test
         run: pytest --cov=idotaku --cov-report=term-missing
 

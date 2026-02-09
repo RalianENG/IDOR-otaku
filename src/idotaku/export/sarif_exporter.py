@@ -1,17 +1,19 @@
 """SARIF exporter for idotaku reports."""
 
+from __future__ import annotations
+
 import json
 from pathlib import Path
-from typing import Union
+from typing import Any, Final, Union
 
-from ..report.models import ReportData
+from ..report.models import IDORFindingDict, ReportData
 
-SARIF_VERSION = "2.1.0"
-SARIF_SCHEMA = "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/main/sarif-2.1/schema/sarif-schema-2.1.0.json"
+SARIF_VERSION: Final[str] = "2.1.0"
+SARIF_SCHEMA: Final[str] = "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/main/sarif-2.1/schema/sarif-schema-2.1.0.json"
 
-TOOL_NAME = "idotaku"
+TOOL_NAME: Final[str] = "idotaku"
 
-RULES = [
+RULES: Final[list[dict[str, Any]]] = [
     {
         "id": "IDOR001",
         "name": "IDUsedWithoutOrigin",
@@ -24,7 +26,7 @@ RULES = [
 ]
 
 
-def _build_sarif_result(finding: dict) -> dict:
+def _build_sarif_result(finding: IDORFindingDict) -> dict[str, Any]:
     """Build a single SARIF result from an IDOR finding."""
     usages = finding.get("usages", [])
 

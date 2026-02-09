@@ -1,10 +1,15 @@
 """Flow analysis utilities for idotaku reports."""
 
+from __future__ import annotations
+
 from collections import defaultdict
+from typing import Any
 from urllib.parse import urlparse
 
 
-def build_param_producer_consumer(sorted_flows: list[dict]) -> tuple[dict, dict]:
+def build_param_producer_consumer(
+    sorted_flows: list[dict[str, Any]],
+) -> tuple[dict[str, dict[str, Any]], dict[str, list[dict[str, Any]]]]:
     """Build param producer and consumer mappings.
 
     Args:
@@ -17,8 +22,8 @@ def build_param_producer_consumer(sorted_flows: list[dict]) -> tuple[dict, dict]
         - param_consumers: defaultdict mapping param_value to list of consumer info
           {param: [{"idx": flow_idx, "method": str, "path": str, "field": str}, ...]}
     """
-    param_producer = {}
-    param_consumers = defaultdict(list)
+    param_producer: dict[str, dict[str, Any]] = {}
+    param_consumers: dict[str, list[dict[str, Any]]] = defaultdict(list)
 
     for i, flow in enumerate(sorted_flows):
         method = flow.get("method", "?")
@@ -53,7 +58,9 @@ def build_param_producer_consumer(sorted_flows: list[dict]) -> tuple[dict, dict]
     return param_producer, param_consumers
 
 
-def build_param_flow_mappings(sorted_flows: list[dict]) -> tuple[dict, dict, dict]:
+def build_param_flow_mappings(
+    sorted_flows: list[dict[str, Any]],
+) -> tuple[dict[str, list[int]], dict[str, list[int]], dict[int, list[str]]]:
     """Build param origin/usage mappings for flow graph construction.
 
     Args:
@@ -65,9 +72,9 @@ def build_param_flow_mappings(sorted_flows: list[dict]) -> tuple[dict, dict, dic
         - param_usages: defaultdict[param, list[flow_idx]] - all consumers of each param
         - flow_produces: defaultdict[flow_idx, list[param]] - params produced by each flow
     """
-    param_origins = defaultdict(list)
-    param_usages = defaultdict(list)
-    flow_produces = defaultdict(list)
+    param_origins: dict[str, list[int]] = defaultdict(list)
+    param_usages: dict[str, list[int]] = defaultdict(list)
+    flow_produces: dict[int, list[str]] = defaultdict(list)
 
     for i, flow in enumerate(sorted_flows):
         for res_id in flow.get("response_ids", []):
@@ -103,7 +110,7 @@ def build_flow_graph(
         Flow graph: dict[origin_idx, list[(usage_idx, [params])]]
     """
     # Build raw graph with param grouping
-    flow_graph_raw = defaultdict(lambda: defaultdict(list))
+    flow_graph_raw: dict[int, dict[int, list[str]]] = defaultdict(lambda: defaultdict(list))
 
     for param, origin_idxs in param_origins.items():
         for origin_idx in origin_idxs:
@@ -112,7 +119,7 @@ def build_flow_graph(
                     flow_graph_raw[origin_idx][usage_idx].append(param)
 
     # Convert to list format with sorted edges
-    flow_graph = defaultdict(list)
+    flow_graph: dict[int, list[tuple[int, list[str]]]] = defaultdict(list)
     for origin_idx, usages in flow_graph_raw.items():
         for usage_idx, params in sorted(usages.items()):
             flow_graph[origin_idx].append((usage_idx, params))
@@ -121,9 +128,9 @@ def build_flow_graph(
 
 
 def build_api_dependencies(
-    param_producer: dict,
-    param_consumers: dict,
-) -> dict[str, dict[str, list[dict]]]:
+    param_producer: dict[str, dict[str, Any]],
+    param_consumers: dict[str, list[dict[str, Any]]],
+) -> dict[str, dict[str, list[dict[str, Any]]]]:
     """Build API dependency graph.
 
     Creates a mapping showing which APIs produce parameters consumed by other APIs.
@@ -136,7 +143,9 @@ def build_api_dependencies(
         API dependencies: dict[producer_api_key, dict[param, list[consumer_info]]]
         where consumer_info = {"api": consumer_api_key, "field": str}
     """
-    api_deps = defaultdict(lambda: defaultdict(list))
+    api_deps: dict[str, dict[str, list[dict[str, Any]]]] = defaultdict(
+        lambda: defaultdict(list)
+    )
 
     for param_val, producer in param_producer.items():
         if param_val not in param_consumers:
@@ -159,7 +168,9 @@ def build_api_dependencies(
     return api_deps
 
 
-def build_id_transition_map(sorted_flows: list[dict]) -> tuple[dict, dict]:
+def build_id_transition_map(
+    sorted_flows: list[dict[str, Any]],
+) -> tuple[dict[str, dict[str, Any]], dict[str, list[dict[str, Any]]]]:
     """Build ID transition maps for trace visualization.
 
     Args:
@@ -170,8 +181,8 @@ def build_id_transition_map(sorted_flows: list[dict]) -> tuple[dict, dict]:
         - id_to_origin: dict[id_value, {"flow_idx": int, "location": str, "field": str}]
         - id_to_subsequent_usage: dict[id_value, list[{"flow_idx": int, "location": str, "field": str}]]
     """
-    id_to_origin = {}
-    id_to_subsequent_usage = defaultdict(list)
+    id_to_origin: dict[str, dict[str, Any]] = {}
+    id_to_subsequent_usage: dict[str, list[dict[str, Any]]] = defaultdict(list)
 
     for i, flow in enumerate(sorted_flows):
         # Track request IDs for subsequent usage
@@ -201,9 +212,9 @@ def build_id_transition_map(sorted_flows: list[dict]) -> tuple[dict, dict]:
 
 
 def find_chain_roots(
-    flow_graph: dict[int, list],
-    flow_produces: dict[int, list],
-    sorted_flows: list[dict],
+    flow_graph: dict[int, list[tuple[int, list[str]]]],
+    flow_produces: dict[int, list[str]],
+    sorted_flows: list[dict[str, Any]],
     min_depth: int = 2,
 ) -> list[tuple[int, int, int]]:
     """Find and rank root flows for chain trees.
@@ -217,7 +228,7 @@ def find_chain_roots(
     Returns:
         List of (flow_idx, depth, node_count) tuples, sorted by depth*nodes descending
     """
-    def calc_tree_depth(flow_idx: int, visited: set) -> int:
+    def calc_tree_depth(flow_idx: int, visited: set[int]) -> int:
         """Calculate maximum tree depth from a flow."""
         if flow_idx in visited:
             return 0
@@ -230,7 +241,7 @@ def find_chain_roots(
 
         return 1 + max_child_depth
 
-    def count_tree_nodes(flow_idx: int, visited: set) -> int:
+    def count_tree_nodes(flow_idx: int, visited: set[int]) -> int:
         """Count total nodes in tree."""
         if flow_idx in visited:
             return 0
@@ -242,7 +253,7 @@ def find_chain_roots(
         return count
 
     # Find root candidates (flows that produce params and have outgoing edges)
-    root_candidates = []
+    root_candidates: list[tuple[int, int, int]] = []
     for flow_idx in flow_produces.keys():
         if flow_idx in flow_graph:
             depth = calc_tree_depth(flow_idx, set())

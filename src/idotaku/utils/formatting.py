@@ -1,5 +1,7 @@
 """Text formatting utility functions."""
 
+from __future__ import annotations
+
 
 def truncate_text(text: str, max_length: int = 60, suffix: str = "...") -> str:
     """Truncate text to specified length with suffix.

@@ -352,6 +352,27 @@ class TestLoadConfigErrors:
         with pytest.raises(SystemExit):
             load_config(config_file)
 
+    def test_extra_ignore_headers_not_list(self, tmp_path):
+        """Test loading config with extra_ignore_headers as string."""
+        config_file = tmp_path / "invalid_extra_headers.yaml"
+        config_file.write_text('idotaku:\n  extra_ignore_headers: "X-Custom"\n')
+        with pytest.raises(SystemExit):
+            load_config(config_file)
+
+    def test_exclude_domains_not_list(self, tmp_path):
+        """Test loading config with exclude_domains as string."""
+        config_file = tmp_path / "invalid_exclude_domains.yaml"
+        config_file.write_text('idotaku:\n  exclude_domains: "example.com"\n')
+        with pytest.raises(SystemExit):
+            load_config(config_file)
+
+    def test_exclude_extensions_not_list(self, tmp_path):
+        """Test loading config with exclude_extensions as string."""
+        config_file = tmp_path / "invalid_ext.yaml"
+        config_file.write_text('idotaku:\n  exclude_extensions: ".js"\n')
+        with pytest.raises(SystemExit):
+            load_config(config_file)
+
 
 class TestLoadConfigAutoDiscovery:
     """Tests for automatic config file discovery."""

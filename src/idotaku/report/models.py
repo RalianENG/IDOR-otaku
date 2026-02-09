@@ -1,7 +1,69 @@
 """Data models for idotaku reports."""
 
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import Optional, TypedDict
+
+
+class FlowIDDict(TypedDict, total=False):
+    """TypedDict for flow ID data."""
+
+    value: str
+    type: str
+    location: str
+    field: Optional[str]
+
+
+class UsageDict(TypedDict, total=False):
+    """TypedDict for ID usage data."""
+
+    url: str
+    method: str
+    location: str
+    field_name: Optional[str]
+    timestamp: str
+
+
+class TrackedIDDict(TypedDict, total=False):
+    """TypedDict for tracked ID data in report."""
+
+    type: str
+    first_seen: str
+    origin: Optional[UsageDict]
+    usage_count: int
+    usages: list[UsageDict]
+
+
+class AuthContextDict(TypedDict, total=False):
+    """TypedDict for auth context data."""
+
+    auth_type: str
+    token_hash: str
+
+
+class FlowDict(TypedDict, total=False):
+    """TypedDict for flow record data."""
+
+    flow_id: str
+    method: str
+    url: str
+    timestamp: str
+    request_ids: list[FlowIDDict]
+    response_ids: list[FlowIDDict]
+    auth_context: Optional[AuthContextDict]
+
+
+class IDORFindingDict(TypedDict, total=False):
+    """TypedDict for IDOR finding data."""
+
+    id_value: str
+    id_type: str
+    usages: list[UsageDict]
+    reason: str
+    risk_score: int
+    risk_level: str
+    risk_factors: list[str]
+    cross_user: bool
+    auth_tokens: list[str]
 
 
 @dataclass
@@ -73,15 +135,15 @@ class ReportData:
     """Complete report data container."""
 
     summary: ReportSummary
-    tracked_ids: dict[str, dict]  # Raw dict for compatibility
-    flows: list[dict]  # Raw dict for compatibility
-    potential_idor: list[dict]  # Raw dict for compatibility
+    tracked_ids: dict[str, TrackedIDDict]
+    flows: list[FlowDict]
+    potential_idor: list[IDORFindingDict]
 
     # Cached derived data
-    _sorted_flows: list[dict] = field(default_factory=list, repr=False)
+    _sorted_flows: list[FlowDict] = field(default_factory=list, repr=False)
     _idor_values: set[str] = field(default_factory=set, repr=False)
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Initialize cached derived data."""
         self._sorted_flows = sorted(
             self.flows, key=lambda x: x.get("timestamp", "")
@@ -92,7 +154,7 @@ class ReportData:
         }
 
     @property
-    def sorted_flows(self) -> list[dict]:
+    def sorted_flows(self) -> list[FlowDict]:
         """Get flows sorted by timestamp."""
         return self._sorted_flows
 

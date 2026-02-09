@@ -1,9 +1,11 @@
 """Configuration loader for idotaku."""
 
+from __future__ import annotations
+
 import re
 import sys
-from pathlib import Path
 from dataclasses import dataclass, field
+from pathlib import Path
 
 # ruamel.yaml is already a dependency of mitmproxy
 from ruamel.yaml import YAML, YAMLError
@@ -81,14 +83,14 @@ class IdotakuConfig:
         ".pdf", ".zip", ".gz",
     ])
 
-    def get_compiled_patterns(self) -> dict[str, re.Pattern]:
+    def get_compiled_patterns(self) -> dict[str, re.Pattern[str]]:
         """Return compiled regex patterns."""
         return {
             name: re.compile(pattern, re.IGNORECASE if name == "uuid" else 0)
             for name, pattern in self.patterns.items()
         }
 
-    def get_compiled_exclude_patterns(self) -> list[re.Pattern]:
+    def get_compiled_exclude_patterns(self) -> list[re.Pattern[str]]:
         """Return compiled exclude patterns."""
         return [re.compile(p) for p in self.exclude_patterns]
 
