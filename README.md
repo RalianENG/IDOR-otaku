@@ -113,9 +113,9 @@ diff = diff_reports(load_report("old.json"), load_report("new.json"))
 
 ## Documentation
 
-- [Quick Start Guide](docs/QUICKSTART.md)
-- [Specification](docs/SPECIFICATION.md)
-- [日本語 / Japanese README](docs/README_ja.md)
+- [Quick Start Guide](https://github.com/RalianENG/IDOR-otaku/blob/main/docs/QUICKSTART.md)
+- [Specification](https://github.com/RalianENG/IDOR-otaku/blob/main/docs/SPECIFICATION.md)
+- [日本語 / Japanese README](https://github.com/RalianENG/IDOR-otaku/blob/main/docs/README_ja.md)
 
 ## Contributing
 
