@@ -13,9 +13,33 @@ source .venv/bin/activate # macOS/Linux
 pip install -e ".[dev]"
 ```
 
+## Branch Naming
+
+| Prefix | Use Case | Example |
+|--------|----------|---------|
+| `feature/` | New features | `feature/add-csv-export` |
+| `fix/` | Bug fixes | `fix/parsing-error` |
+| `chore/` | Maintenance, CI, docs | `chore/update-deps` |
+| `refactor/` | Code refactoring | `refactor/cleanup-api` |
+
+## Commit Messages
+
+Use clear, descriptive commit messages:
+
+```
+<type>: <short summary>
+```
+
+Types: `feat`, `fix`, `chore`, `refactor`, `docs`, `test`, `ci`
+
+Examples:
+- `feat: add SARIF export command`
+- `fix: handle empty response in tracker`
+- `chore: bump mitmproxy to 11.0`
+
 ## Development Workflow
 
-1. Create a branch from `main`
+1. Create a branch from `main` (e.g., `feature/add-new-command`)
 2. Make your changes
 3. Run tests and lint before submitting
 
