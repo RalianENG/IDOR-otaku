@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "mitmproxy-based IDOR detection tool - intercepts traffic and analyzes parameter relationships to find insecure direct object references"
 readme = "README.md"
 license = "MIT"
-requires-python = ">=3.10"
+requires-python = ">=3.12"
 authors = [
     {name = "RalianENG", email = "ralianengineering@gmail.com"},
 ]
@@ -31,8 +31,6 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Topic :: Internet :: Proxy Servers",
@@ -40,7 +38,7 @@ classifiers = [
     "Topic :: Software Development :: Testing",
 ]
 dependencies = [
-    "mitmproxy>=10.0.0",
+    "mitmproxy>=11.0.0",
     "click>=8.0.0",
     "rich>=13.0.0",
     "questionary>=2.0.0",
@@ -67,7 +65,7 @@ packages = ["src/idotaku"]
 
 [tool.ruff]
 line-length = 100
-target-version = "py310"
+target-version = "py312"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -81,7 +79,7 @@ markers = [
 ]
 
 [tool.mypy]
-python_version = "3.10"
+python_version = "3.12"
 warn_return_any = false
 warn_unused_ignores = true
 disallow_untyped_defs = false
@@ -90,6 +88,7 @@ check_untyped_defs = false
 strict_optional = true
 ignore_missing_imports = true
 show_error_codes = true
+exclude = ["venv", ".venv"]
 
 # Strict mode for core modules (gradually enable for others)
 [[tool.mypy.overrides]]
