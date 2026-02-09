@@ -58,6 +58,14 @@ class TestConfigShow:
         assert result.exit_code == 0
         assert "500" in result.output
 
+    def test_show_with_discovered_file(self, runner, tmp_path, monkeypatch):
+        """Show prints path of auto-discovered config file."""
+        monkeypatch.chdir(tmp_path)
+        (tmp_path / "idotaku.yaml").write_text("idotaku:\n  output: test.json\n")
+        result = runner.invoke(main, ["config", "show"])
+        assert result.exit_code == 0
+        assert "idotaku.yaml" in result.output
+
 
 class TestConfigGet:
     def test_get_scalar(self, runner, tmp_path, monkeypatch):
@@ -76,6 +84,13 @@ class TestConfigGet:
         result = runner.invoke(main, ["config", "get", "nonexistent"])
         assert result.exit_code != 0
         assert "Unknown key" in result.output
+
+    def test_get_list_value(self, runner, tmp_path, monkeypatch):
+        """Get a list-type config value (outputs as YAML)."""
+        monkeypatch.chdir(tmp_path)
+        result = runner.invoke(main, ["config", "get", "exclude_extensions"])
+        assert result.exit_code == 0
+        assert ".css" in result.output
 
 
 class TestConfigSet:
@@ -123,6 +138,20 @@ class TestConfigValidate:
         result = runner.invoke(main, ["config", "validate"])
         assert result.exit_code == 0
         assert "No config file" in result.output
+
+    def test_validate_with_explicit_path(self, runner, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        runner.invoke(main, ["config", "init"])
+        cfg_path = str(tmp_path / "idotaku.yaml")
+        result = runner.invoke(main, ["config", "validate", "-c", cfg_path])
+        assert result.exit_code == 0
+        assert "valid" in result.output.lower()
+
+    def test_validate_missing_explicit_file(self, runner, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        result = runner.invoke(main, ["config", "validate", "-c", str(tmp_path / "missing.yaml")])
+        assert result.exit_code != 0
+        assert "not found" in result.output.lower()
 
 
 class TestConfigPath:

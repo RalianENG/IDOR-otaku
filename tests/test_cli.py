@@ -141,6 +141,22 @@ class TestInteractiveCommand:
         assert result.exit_code == 0
         assert "--interactive" in result.output or "-i" in result.output
 
+    def test_interactive_command_invokes(self, runner):
+        """Test interactive command calls run_interactive_mode."""
+        from unittest.mock import patch
+        with patch("idotaku.interactive.run_interactive_mode") as mock_run:
+            result = runner.invoke(main, ["interactive"])
+            assert result.exit_code == 0
+            mock_run.assert_called_once()
+
+    def test_interactive_flag_invokes(self, runner):
+        """Test -i flag calls run_interactive_mode."""
+        from unittest.mock import patch
+        with patch("idotaku.interactive.run_interactive_mode") as mock_run:
+            result = runner.invoke(main, ["-i"])
+            assert result.exit_code == 0
+            mock_run.assert_called_once()
+
 
 class TestDiffCommand:
     """Tests for diff command."""
@@ -176,6 +192,73 @@ class TestDiffCommand:
         result = runner.invoke(main, ["diff", str(file_a), str(file_b)])
         assert result.exit_code == 0
         assert "New IDOR" in result.output
+
+    def test_diff_removed_idor(self, runner, sample_report_data, tmp_path):
+        """Test diff showing removed IDOR candidates."""
+        file_a = tmp_path / "a.json"
+        file_b = tmp_path / "b.json"
+
+        with open(file_a, "w") as f:
+            json.dump(sample_report_data, f)
+
+        # Report B has no IDOR findings (removed)
+        data_b = {**sample_report_data, "potential_idor": []}
+        with open(file_b, "w") as f:
+            json.dump(data_b, f)
+
+        result = runner.invoke(main, ["diff", str(file_a), str(file_b)])
+        assert result.exit_code == 0
+        assert "Removed IDOR" in result.output
+
+    def test_diff_new_and_removed_ids(self, runner, sample_report_data, tmp_path):
+        """Test diff showing new and removed tracked IDs."""
+        file_a = tmp_path / "a.json"
+        file_b = tmp_path / "b.json"
+
+        with open(file_a, "w") as f:
+            json.dump(sample_report_data, f)
+
+        # Report B: remove one ID, add another
+        data_b = {**sample_report_data}
+        tracked = dict(sample_report_data["tracked_ids"])
+        del tracked["12345"]
+        tracked["new_id_999"] = {
+            "type": "numeric", "first_seen": "2024-01-01T10:05:00",
+            "origin": None, "usages": [],
+        }
+        data_b["tracked_ids"] = tracked
+        data_b["summary"] = {**sample_report_data["summary"], "total_unique_ids": 3}
+        with open(file_b, "w") as f:
+            json.dump(data_b, f)
+
+        result = runner.invoke(main, ["diff", str(file_a), str(file_b)])
+        assert result.exit_code == 0
+        assert "new tracked ID" in result.output
+        assert "removed tracked ID" in result.output
+
+    def test_diff_json_export_with_changes(self, runner, sample_report_data, tmp_path):
+        """Test diff JSON export when there are actual changes."""
+        file_a = tmp_path / "a.json"
+        file_b = tmp_path / "b.json"
+        output = tmp_path / "diff.json"
+
+        with open(file_a, "w") as f:
+            json.dump(sample_report_data, f)
+
+        data_b = {**sample_report_data, "potential_idor": []}
+        with open(file_b, "w") as f:
+            json.dump(data_b, f)
+
+        result = runner.invoke(main, [
+            "diff", str(file_a), str(file_b),
+            "--json-output", str(output),
+        ])
+        assert result.exit_code == 0
+        assert output.exists()
+        assert "Diff exported" in result.output
+        with open(output) as f:
+            diff_data = json.load(f)
+        assert diff_data["has_changes"] is True
 
     def test_diff_json_export(self, runner, sample_report_file, tmp_path):
         output = tmp_path / "diff.json"
