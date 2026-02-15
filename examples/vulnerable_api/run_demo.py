@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Cross-platform demo runner for idotaku vulnerable API example.
 
-Starts the vulnerable API server, proxies traffic through mitmdump with the
-idotaku tracker, runs the automated attack scenario, and generates analysis
-reports including interactive HTML exports.
+Starts the vulnerable API server, runs an in-process mitmproxy with the
+idotaku tracker, executes the automated attack scenario, and generates
+analysis reports including interactive HTML exports.
 
 Works on Windows, macOS, and Linux.
 
@@ -14,12 +14,15 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import asyncio
+import json
 import os
 import shutil
 import signal
 import socket
 import subprocess
 import sys
+import threading
 import time
 from pathlib import Path
 
@@ -64,10 +67,10 @@ def check_port_free(port: int) -> bool:
             return False
 
 
-def wait_for_url(url: str, timeout: int = 15, proxy: str | None = None) -> bool:
+def wait_for_url(url: str, timeout: int = 30, proxy: str | None = None) -> bool:
     """Wait for a URL to respond with HTTP 200."""
-    import urllib.request
     import urllib.error
+    import urllib.request
 
     deadline = time.time() + timeout
     while time.time() < deadline:
@@ -165,6 +168,55 @@ def run_command(cmd: list[str], label: str) -> None:
     subprocess.run(cmd, check=False)
 
 
+def start_proxy(port: int, config_file: str) -> tuple:
+    """Start mitmproxy in-process in a background thread.
+
+    Returns (tracker, master, thread) tuple.
+    """
+    from mitmproxy.options import Options
+    from mitmproxy.tools.dump import DumpMaster
+
+    from idotaku.config import load_config
+    from idotaku.tracker import IDTracker
+
+    config = load_config(config_file)
+    tracker = IDTracker(config)
+    tracker._use_ctx = True
+
+    master_holder: list = []
+    ready_event = threading.Event()
+    error_holder: list = []
+
+    async def _run() -> None:
+        opts = Options(listen_port=port)
+        m = DumpMaster(opts)
+        m.addons.add(tracker)
+        master_holder.append(m)
+        ready_event.set()
+        await m.run()
+
+    def _thread() -> None:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            loop.run_until_complete(_run())
+        except Exception as exc:
+            error_holder.append(exc)
+            ready_event.set()
+
+    t = threading.Thread(target=_thread, daemon=True)
+    t.start()
+
+    # Wait for proxy to be ready
+    ready_event.wait(timeout=15)
+    if error_holder:
+        raise RuntimeError(f"Proxy failed to start: {error_holder[0]}")
+    if not master_holder:
+        raise RuntimeError("Proxy failed to initialize")
+
+    return tracker, master_holder[0], t
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Run the idotaku demo with the vulnerable API"
@@ -180,18 +232,18 @@ def main() -> None:
     api_port = args.api_port
     proxy_port = args.proxy_port
     report_file = SCRIPT_DIR / "test_report.json"
-    config_file = SCRIPT_DIR / "idotaku.yaml"
+    config_file = str(SCRIPT_DIR / "idotaku.yaml")
 
     server_proc: subprocess.Popen | None = None  # type: ignore[type-arg]
-    proxy_proc: subprocess.Popen | None = None  # type: ignore[type-arg]
+    proxy_master = None
 
     try:
         # ---- Step 1: Prerequisites ----
         header("Checking prerequisites")
 
         try:
-            mitmdump_path = find_mitmdump()
-            success(f"mitmdump found: {mitmdump_path}")
+            find_mitmdump()
+            success("mitmproxy found")
         except FileNotFoundError as e:
             error(str(e))
             sys.exit(1)
@@ -202,9 +254,6 @@ def main() -> None:
         except FileNotFoundError as e:
             error(str(e))
             sys.exit(1)
-
-        tracker_path = get_tracker_path()
-        success(f"tracker: {tracker_path}")
 
         if not check_port_free(api_port):
             error(f"Port {api_port} is already in use. Use --api-port to change.")
@@ -232,31 +281,24 @@ def main() -> None:
         )
         info(f"Server PID: {server_proc.pid}")
 
-        api_url = f"http://localhost:{api_port}"
+        api_url = f"http://127.0.0.1:{api_port}"
         if not wait_for_url(f"{api_url}/api/health"):
-            error("API server failed to start within 15 seconds")
+            error("API server failed to start within 30 seconds")
             sys.exit(1)
         success("API server is ready")
 
-        # ---- Step 4: Start mitmdump proxy ----
-        header(f"Starting mitmdump proxy (port {proxy_port})")
-        proxy_proc = subprocess.Popen(
-            [
-                mitmdump_path,
-                "-s", tracker_path,
-                "--listen-port", str(proxy_port),
-                "--set", f"idotaku_config={config_file}",
-                "--set", f"idotaku_output={report_file}",
-                "--set", "connection_strategy=lazy",
-                "--quiet",
-            ],
-            creationflags=creation_flags,
-        )
-        info(f"Proxy PID: {proxy_proc.pid}")
+        # ---- Step 4: Start in-process proxy ----
+        header(f"Starting proxy (port {proxy_port})")
+        try:
+            tracker, proxy_master, proxy_thread = start_proxy(proxy_port, config_file)
+        except RuntimeError as e:
+            error(str(e))
+            sys.exit(1)
 
-        proxy_url = f"http://localhost:{proxy_port}"
+        # Verify proxy works
+        proxy_url = f"http://127.0.0.1:{proxy_port}"
         if not wait_for_url(f"{api_url}/api/health", proxy=proxy_url):
-            error("Proxy failed to start within 15 seconds")
+            error("Proxy failed to respond within 30 seconds")
             sys.exit(1)
         success("Proxy is ready")
 
@@ -275,22 +317,32 @@ def main() -> None:
             sys.exit(1)
         success("Test scenario complete")
 
-        # ---- Step 6: Stop proxy (triggers report generation) ----
-        header("Stopping proxy (generating report)")
-        terminate_process(proxy_proc)
-        proxy_proc = None
-        time.sleep(2)
+        # ---- Step 6: Generate report ----
+        header("Generating report")
+        time.sleep(1)  # Allow any pending responses to be processed
 
-        if report_file.exists():
-            success(f"Report generated: {report_file.name}")
-        else:
-            error(f"Report file not found: {report_file}")
-            sys.exit(1)
+        tracker.output_file = str(report_file)
+        report = tracker.generate_report()
 
-        # ---- Step 7: Stop server ----
+        with open(report_file, "w", encoding="utf-8") as f:
+            json.dump(report, f, indent=2, ensure_ascii=False)
+
+        info(f"Tracked {report['summary']['total_flows']} flows, "
+             f"{report['summary']['total_unique_ids']} unique IDs")
+
+        if report["potential_idor"]:
+            info(f"Found {len(report['potential_idor'])} potential IDOR candidates")
+
+        success(f"Report generated: {report_file.name}")
+
+        # ---- Step 7: Shutdown proxy and server ----
+        if proxy_master:
+            proxy_master.shutdown()
+            proxy_master = None
+
         terminate_process(server_proc)
         server_proc = None
-        success("API server stopped")
+        success("Services stopped")
 
         # ---- Step 8: Run analysis ----
         report_str = str(report_file)
@@ -304,14 +356,17 @@ def main() -> None:
         chain_html = str(SCRIPT_DIR / "chain.html")
         sequence_html = str(SCRIPT_DIR / "sequence.html")
 
+        # Suppress console output for HTML generation (avoids Unicode
+        # encoding issues on Windows with Rich's legacy console renderer)
         subprocess.run(
-            [idotaku_path, "chain", report_str, "--html", chain_html], check=False
+            [idotaku_path, "chain", report_str, "--html", chain_html],
+            check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
         )
         success(f"Chain HTML: {chain_html}")
 
         subprocess.run(
             [idotaku_path, "sequence", report_str, "--html", sequence_html],
-            check=False,
+            check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
         )
         success(f"Sequence HTML: {sequence_html}")
 
@@ -325,8 +380,11 @@ def main() -> None:
         print("Open the HTML files in a browser to explore interactive visualizations.")
 
     finally:
-        if proxy_proc is not None:
-            terminate_process(proxy_proc)
+        if proxy_master is not None:
+            try:
+                proxy_master.shutdown()
+            except Exception:
+                pass
         if server_proc is not None:
             terminate_process(server_proc)
 
