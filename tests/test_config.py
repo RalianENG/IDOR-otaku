@@ -380,6 +380,32 @@ class TestLoadConfigErrors:
         with pytest.raises(SystemExit):
             load_config(config_file)
 
+    def test_max_body_size_valid(self, tmp_path):
+        """Test loading config with valid max_body_size."""
+        config_file = tmp_path / "body_size.yaml"
+        config_file.write_text("idotaku:\n  max_body_size: 102400\n")
+        config = load_config(config_file)
+        assert config.max_body_size == 102400
+
+    def test_max_body_size_zero(self, tmp_path):
+        """Test loading config with max_body_size=0 (unlimited)."""
+        config_file = tmp_path / "body_size_zero.yaml"
+        config_file.write_text("idotaku:\n  max_body_size: 0\n")
+        config = load_config(config_file)
+        assert config.max_body_size == 0
+
+    def test_max_body_size_invalid(self, tmp_path):
+        """Test loading config with invalid max_body_size."""
+        config_file = tmp_path / "body_size_bad.yaml"
+        config_file.write_text('idotaku:\n  max_body_size: "not_a_number"\n')
+        with pytest.raises(SystemExit):
+            load_config(config_file)
+
+    def test_max_body_size_default(self):
+        """Test default max_body_size value."""
+        config = IdotakuConfig()
+        assert config.max_body_size == 51200
+
 
 class TestLoadConfigAutoDiscovery:
     """Tests for automatic config file discovery."""

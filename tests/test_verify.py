@@ -14,6 +14,7 @@ from idotaku.verify.models import (
     RequestData,
     ResponseData,
     SuggestedValue,
+    VerifyResult,
 )
 from idotaku.verify.suggestions import CUSTOM_INPUT, suggest_modifications
 from idotaku.verify.comparison import compare_responses
@@ -24,6 +25,14 @@ from idotaku.commands.verify_cmd import (
     _set_nested_value,
     _build_request_from_report,
     _build_original_response,
+    _find_header_key,
+    _display_legal_warning,
+    _display_request,
+    _display_response,
+    _display_comparison,
+    _display_summary,
+    _save_results,
+    _result_to_dict,
 )
 
 
@@ -511,3 +520,583 @@ class TestVerifyCommand:
         result = runner.invoke(main, ["verify", str(report_file), "--min-score", "99"])
         assert result.exit_code == 0
         assert "No findings match" in result.output
+
+    def test_verify_level_filter(self, tmp_path: pytest.TempPathFactory) -> None:
+        from idotaku.cli import main
+        report = {
+            "summary": {"total_unique_ids": 1, "ids_with_origin": 0,
+                        "ids_with_usage": 1, "total_flows": 1},
+            "tracked_ids": {},
+            "flows": [],
+            "potential_idor": [
+                {
+                    "id_value": "12345",
+                    "id_type": "numeric",
+                    "usages": [{
+                        "url": "https://example.com/users/12345",
+                        "method": "GET",
+                        "location": "url_path",
+                        "field_name": None,
+                        "timestamp": "2024-01-01T00:00:00",
+                    }],
+                    "reason": "test",
+                },
+            ],
+        }
+        report_file = tmp_path / "report.json"  # type: ignore[operator]
+        report_file.write_text(json.dumps(report))
+
+        runner = CliRunner()
+        result = runner.invoke(
+            main, ["verify", str(report_file), "--level", "critical"]
+        )
+        assert result.exit_code == 0
+        assert "No findings match" in result.output
+
+    @patch("idotaku.commands.verify_cmd.questionary")
+    def test_verify_auth_denied(
+        self, mock_q: MagicMock, tmp_path: pytest.TempPathFactory,
+    ) -> None:
+        from idotaku.cli import main
+        report = {
+            "summary": {"total_unique_ids": 1, "ids_with_origin": 0,
+                        "ids_with_usage": 1, "total_flows": 1},
+            "tracked_ids": {},
+            "flows": [],
+            "potential_idor": [
+                {
+                    "id_value": "12345",
+                    "id_type": "numeric",
+                    "usages": [{
+                        "url": "https://example.com/users/12345",
+                        "method": "GET",
+                        "location": "url_path",
+                        "field_name": None,
+                        "timestamp": "2024-01-01T00:00:00",
+                    }],
+                    "reason": "test",
+                },
+            ],
+        }
+        report_file = tmp_path / "report.json"  # type: ignore[operator]
+        report_file.write_text(json.dumps(report))
+
+        mock_q.confirm.return_value.ask.return_value = False
+        runner = CliRunner()
+        result = runner.invoke(main, ["verify", str(report_file)])
+        assert result.exit_code == 0
+        assert "Aborted" in result.output
+
+    @patch("idotaku.commands.verify_cmd.questionary")
+    def test_verify_full_flow_quit_immediately(
+        self, mock_q: MagicMock, tmp_path: pytest.TempPathFactory,
+    ) -> None:
+        from idotaku.cli import main
+        report = {
+            "summary": {"total_unique_ids": 1, "ids_with_origin": 0,
+                        "ids_with_usage": 1, "total_flows": 1},
+            "tracked_ids": {},
+            "flows": [{
+                "url": "https://example.com/users/12345",
+                "method": "GET",
+                "flow_id": "f1",
+                "timestamp": "2024-01-01T00:00:00",
+                "request_ids": [],
+                "response_ids": [],
+                "request_headers": {"Authorization": "Bearer tok"},
+                "request_body": None,
+                "status_code": 200,
+                "response_headers": {},
+                "response_body": '{"id": 12345}',
+            }],
+            "potential_idor": [{
+                "id_value": "12345",
+                "id_type": "numeric",
+                "usages": [{
+                    "url": "https://example.com/users/12345",
+                    "method": "GET",
+                    "location": "url_path",
+                    "field_name": None,
+                    "timestamp": "2024-01-01T00:00:00",
+                }],
+                "reason": "test",
+            }],
+        }
+        report_file = tmp_path / "report.json"  # type: ignore[operator]
+        report_file.write_text(json.dumps(report))
+
+        # auth=Yes, then select=__quit__
+        mock_q.confirm.return_value.ask.return_value = True
+        mock_q.select.return_value.ask.return_value = "__quit__"
+
+        runner = CliRunner()
+        result = runner.invoke(main, ["verify", str(report_file), "--no-save"])
+        assert result.exit_code == 0
+
+    @patch("idotaku.commands.verify_cmd.VerifyHttpClient")
+    @patch("idotaku.commands.verify_cmd.questionary")
+    def test_verify_full_flow_send_request(
+        self, mock_q: MagicMock, mock_client_cls: MagicMock,
+        tmp_path: pytest.TempPathFactory,
+    ) -> None:
+        from idotaku.cli import main
+        report = {
+            "summary": {"total_unique_ids": 1, "ids_with_origin": 0,
+                        "ids_with_usage": 1, "total_flows": 1},
+            "tracked_ids": {},
+            "flows": [{
+                "url": "https://example.com/users/12345",
+                "method": "GET",
+                "flow_id": "f1",
+                "timestamp": "2024-01-01T00:00:00",
+                "request_ids": [],
+                "response_ids": [],
+                "request_headers": {"Authorization": "Bearer tok"},
+                "request_body": None,
+                "status_code": 200,
+                "response_headers": {"content-type": "application/json"},
+                "response_body": '{"id": 12345}',
+            }],
+            "potential_idor": [{
+                "id_value": "12345",
+                "id_type": "numeric",
+                "usages": [{
+                    "url": "https://example.com/users/12345",
+                    "method": "GET",
+                    "location": "url_path",
+                    "field_name": None,
+                    "timestamp": "2024-01-01T00:00:00",
+                }],
+                "reason": "test",
+            }],
+        }
+        report_file = tmp_path / "report.json"  # type: ignore[operator]
+        report_file.write_text(json.dumps(report))
+        output_file = tmp_path / "results.json"  # type: ignore[operator]
+
+        # Mock questionary calls in order:
+        # 1. confirm auth -> True
+        # 2. select finding -> "0"
+        # 3. select modification -> "0" (first suggestion: +1)
+        # 4. confirm send -> True
+        # 5. confirm continue -> False
+        confirm_results = [True, True, False]
+        mock_q.confirm.return_value.ask.side_effect = confirm_results
+        mock_q.select.return_value.ask.side_effect = ["0", "0"]
+
+        mock_response = ResponseData(
+            status_code=200, headers={}, body='{"id": 12346}',
+            content_length=13, elapsed_ms=50.0,
+        )
+        mock_client_cls.return_value.send.return_value = mock_response
+
+        runner = CliRunner()
+        result = runner.invoke(
+            main,
+            ["verify", str(report_file), "-o", str(output_file)],
+        )
+        assert result.exit_code == 0
+        assert output_file.exists()
+
+    @patch("idotaku.commands.verify_cmd.VerifyHttpClient")
+    @patch("idotaku.commands.verify_cmd.questionary")
+    def test_verify_request_error(
+        self, mock_q: MagicMock, mock_client_cls: MagicMock,
+        tmp_path: pytest.TempPathFactory,
+    ) -> None:
+        from idotaku.cli import main
+        report = {
+            "summary": {"total_unique_ids": 1, "ids_with_origin": 0,
+                        "ids_with_usage": 1, "total_flows": 1},
+            "tracked_ids": {},
+            "flows": [{
+                "url": "https://example.com/users/12345",
+                "method": "GET",
+                "flow_id": "f1",
+                "timestamp": "2024-01-01T00:00:00",
+                "request_ids": [],
+                "response_ids": [],
+                "request_headers": {},
+                "request_body": None,
+                "status_code": 200,
+                "response_headers": {},
+                "response_body": "",
+            }],
+            "potential_idor": [{
+                "id_value": "12345",
+                "id_type": "numeric",
+                "usages": [{
+                    "url": "https://example.com/users/12345",
+                    "method": "GET",
+                    "location": "url_path",
+                    "field_name": None,
+                    "timestamp": "2024-01-01T00:00:00",
+                }],
+                "reason": "test",
+            }],
+        }
+        report_file = tmp_path / "report.json"  # type: ignore[operator]
+        report_file.write_text(json.dumps(report))
+
+        # auth=True, send=True; after error loops back -> select quit
+        mock_q.confirm.return_value.ask.side_effect = [True, True]
+        mock_q.select.return_value.ask.side_effect = ["0", "0", "__quit__"]
+        mock_client_cls.return_value.send.side_effect = ConnectionError("timeout")
+
+        runner = CliRunner()
+        result = runner.invoke(
+            main, ["verify", str(report_file), "--no-save"],
+        )
+        assert result.exit_code == 0
+        assert "Request failed" in result.output
+
+
+# --- TestComparisonEdgeCases ---
+
+
+class TestComparisonEdgeCases:
+    """Test edge cases for response comparison."""
+
+    def test_different_status_other_with_original(self) -> None:
+        """Different status code (not 401/403/404) should be INCONCLUSIVE."""
+        original = ResponseData(status_code=200, content_length=1000)
+        modified = ResponseData(status_code=302, content_length=0)
+        result = compare_responses(modified, original)
+        assert result.verdict == "INCONCLUSIVE"
+        assert "Different status code" in result.details[-1]
+
+    def test_standalone_404_inconclusive(self) -> None:
+        modified = ResponseData(status_code=404, content_length=50)
+        result = compare_responses(modified)
+        assert result.verdict == "INCONCLUSIVE"
+        assert "not found" in result.details[-1].lower()
+
+    def test_standalone_401_not_vulnerable(self) -> None:
+        modified = ResponseData(status_code=401, content_length=50)
+        result = compare_responses(modified)
+        assert result.verdict == "NOT_VULNERABLE"
+
+    def test_standalone_unexpected_status(self) -> None:
+        modified = ResponseData(status_code=302, content_length=0)
+        result = compare_responses(modified)
+        assert result.verdict == "INCONCLUSIVE"
+        assert "manual review" in result.details[-1].lower()
+
+    def test_standalone_503_server_error(self) -> None:
+        modified = ResponseData(status_code=503, content_length=100)
+        result = compare_responses(modified)
+        assert result.verdict == "INCONCLUSIVE"
+        assert "Server error" in result.details[-1]
+
+    def test_with_original_500_inconclusive(self) -> None:
+        original = ResponseData(status_code=200, content_length=1000)
+        modified = ResponseData(status_code=500, content_length=100)
+        result = compare_responses(modified, original)
+        assert result.verdict == "INCONCLUSIVE"
+
+
+# --- TestFindHeaderKey ---
+
+
+class TestFindHeaderKey:
+    """Test header key lookup."""
+
+    def test_case_insensitive_match(self) -> None:
+        headers = {"X-User-Id": "123", "Content-Type": "application/json"}
+        assert _find_header_key(headers, "x-user-id") == "X-User-Id"
+
+    def test_with_colon_prefix(self) -> None:
+        headers = {"Cookie": "session=abc"}
+        assert _find_header_key(headers, "cookie:session_id") == "Cookie"
+
+    def test_no_match(self) -> None:
+        headers = {"Authorization": "Bearer token"}
+        assert _find_header_key(headers, "x-custom") is None
+
+
+# --- TestDisplayFunctions ---
+
+
+class TestDisplayFunctions:
+    """Test display helper functions (smoke tests)."""
+
+    def test_display_legal_warning(self) -> None:
+        # Should not raise
+        _display_legal_warning()
+
+    def test_display_request_minimal(self) -> None:
+        req = RequestData(method="GET", url="https://example.com/test")
+        _display_request(req, "Test Request")
+
+    def test_display_request_with_headers_and_body(self) -> None:
+        headers = {f"Header-{i}": f"value-{i}" for i in range(15)}
+        req = RequestData(
+            method="POST",
+            url="https://example.com/test",
+            headers=headers,
+            body="x" * 300,
+        )
+        _display_request(req, "Large Request")
+
+    def test_display_response_success(self) -> None:
+        resp = ResponseData(
+            status_code=200, content_length=100, elapsed_ms=50.0,
+            body='{"result": "ok"}',
+        )
+        _display_response(resp)
+
+    def test_display_response_error(self) -> None:
+        resp = ResponseData(
+            status_code=500, content_length=50, elapsed_ms=100.0,
+            body="Internal Server Error",
+        )
+        _display_response(resp)
+
+    def test_display_response_long_body(self) -> None:
+        resp = ResponseData(
+            status_code=200, content_length=500, elapsed_ms=50.0,
+            body="x" * 500,
+        )
+        _display_response(resp)
+
+    def test_display_comparison(self) -> None:
+        comp = ComparisonResult(
+            status_match=True, status_original=200, status_modified=200,
+            content_length_diff=10, verdict="VULNERABLE",
+            details=["Same status", "Similar length"],
+        )
+        _display_comparison(comp)
+
+    def test_display_comparison_unknown_verdict(self) -> None:
+        comp = ComparisonResult(
+            status_match=False, status_original=200, status_modified=418,
+            content_length_diff=-100, verdict="UNKNOWN_VERDICT",
+            details=["Teapot"],
+        )
+        _display_comparison(comp)
+
+    def test_display_summary(self) -> None:
+        results = [
+            VerifyResult(
+                finding_id_value="12345",
+                finding_id_type="numeric",
+                original_request=RequestData(method="GET", url="https://example.com/1"),
+                modified_request=RequestData(method="GET", url="https://example.com/2"),
+                modification=Modification(
+                    original_value="1", modified_value="2",
+                    location="url_path", field_name=None, description="+1",
+                ),
+                response=ResponseData(status_code=200, content_length=100),
+                original_response=None,
+                comparison=ComparisonResult(
+                    status_match=False, status_original=None,
+                    status_modified=200, content_length_diff=None,
+                    verdict="LIKELY_VULNERABLE",
+                ),
+                timestamp="2024-01-01T00:00:00Z",
+            ),
+        ]
+        _display_summary(results)
+
+
+# --- TestSaveResults ---
+
+
+class TestSaveResults:
+    """Test result saving."""
+
+    def test_save_and_load_results(self, tmp_path: pytest.TempPathFactory) -> None:
+        results = [
+            VerifyResult(
+                finding_id_value="12345",
+                finding_id_type="numeric",
+                original_request=RequestData(method="GET", url="https://example.com/1"),
+                modified_request=RequestData(method="GET", url="https://example.com/2"),
+                modification=Modification(
+                    original_value="1", modified_value="2",
+                    location="url_path", field_name=None, description="+1",
+                ),
+                response=ResponseData(
+                    status_code=200, content_length=100, elapsed_ms=50.0,
+                ),
+                original_response=ResponseData(
+                    status_code=200, content_length=95,
+                ),
+                comparison=ComparisonResult(
+                    status_match=True, status_original=200,
+                    status_modified=200, content_length_diff=5,
+                    verdict="VULNERABLE",
+                ),
+                timestamp="2024-01-01T00:00:00Z",
+            ),
+        ]
+        output = str(tmp_path / "results.json")  # type: ignore[operator]
+        _save_results(results, output, "test_report.json")
+
+        with open(output, encoding="utf-8") as f:
+            data = json.load(f)
+
+        assert data["session"]["source_report"] == "test_report.json"
+        assert len(data["results"]) == 1
+        assert data["results"][0]["verdict"] == "VULNERABLE"
+        assert data["results"][0]["original_response"]["status_code"] == 200
+
+    def test_save_result_without_original_response(
+        self, tmp_path: pytest.TempPathFactory,
+    ) -> None:
+        results = [
+            VerifyResult(
+                finding_id_value="abc",
+                finding_id_type="token",
+                original_request=RequestData(method="GET", url="https://example.com"),
+                modified_request=RequestData(method="GET", url="https://example.com"),
+                modification=Modification(
+                    original_value="abc", modified_value="xyz",
+                    location="url_path", field_name=None, description="test",
+                ),
+                response=ResponseData(status_code=403, content_length=20),
+                original_response=None,
+                comparison=ComparisonResult(
+                    status_match=False, status_original=None,
+                    status_modified=403, content_length_diff=None,
+                    verdict="NOT_VULNERABLE",
+                ),
+                timestamp="2024-01-01T00:00:00Z",
+            ),
+        ]
+        output = str(tmp_path / "results2.json")  # type: ignore[operator]
+        _save_results(results, output, "report.json")
+
+        with open(output, encoding="utf-8") as f:
+            data = json.load(f)
+
+        assert data["results"][0]["original_response"] is None
+        assert data["results"][0]["verdict"] == "NOT_VULNERABLE"
+
+    def test_result_to_dict(self) -> None:
+        result = VerifyResult(
+            finding_id_value="999",
+            finding_id_type="numeric",
+            original_request=RequestData(method="DELETE", url="https://example.com/999"),
+            modified_request=RequestData(method="DELETE", url="https://example.com/1000"),
+            modification=Modification(
+                original_value="999", modified_value="1000",
+                location="url_path", field_name=None, description="+1",
+            ),
+            response=ResponseData(
+                status_code=204, content_length=0, elapsed_ms=30.0,
+            ),
+            original_response=None,
+            comparison=ComparisonResult(
+                status_match=False, status_original=None,
+                status_modified=204, content_length_diff=None,
+                verdict="INCONCLUSIVE",
+            ),
+            timestamp="2024-01-01T00:00:00Z",
+        )
+        d = _result_to_dict(result)
+        assert d["finding_id"] == "999"
+        assert d["modification"]["location"] == "url_path"
+        assert d["request"]["method"] == "DELETE"
+        assert d["response"]["elapsed_ms"] == 30.0
+
+
+# --- TestApplyModificationEdgeCases ---
+
+
+class TestApplyModificationEdgeCases:
+    """Test edge cases for modification application."""
+
+    def test_query_fallback_no_field_name(self) -> None:
+        request = RequestData(
+            method="GET",
+            url="https://api.example.com/search?q=12345&page=1",
+        )
+        mod = Modification(
+            original_value="12345",
+            modified_value="12346",
+            location="query",
+            field_name=None,
+            description="test",
+        )
+        result = _apply_modification(request, mod)
+        assert "12346" in result.url
+        assert "12345" not in result.url
+
+    def test_body_non_json_replacement(self) -> None:
+        request = RequestData(
+            method="POST",
+            url="https://api.example.com/form",
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+            body="user_id=12345&action=test",
+        )
+        mod = Modification(
+            original_value="12345",
+            modified_value="12346",
+            location="body",
+            field_name="user_id",
+            description="test",
+        )
+        result = _apply_modification(request, mod)
+        assert "12346" in result.body
+        assert "12345" not in result.body
+
+    def test_body_no_body(self) -> None:
+        request = RequestData(
+            method="GET",
+            url="https://api.example.com/test",
+            body=None,
+        )
+        mod = Modification(
+            original_value="12345",
+            modified_value="12346",
+            location="body",
+            field_name=None,
+            description="test",
+        )
+        result = _apply_modification(request, mod)
+        assert result.body is None
+
+    def test_header_no_field_name(self) -> None:
+        request = RequestData(
+            method="GET",
+            url="https://api.example.com/test",
+            headers={"X-Id": "12345"},
+        )
+        mod = Modification(
+            original_value="12345",
+            modified_value="12346",
+            location="header",
+            field_name=None,
+            description="test",
+        )
+        result = _apply_modification(request, mod)
+        # No field_name -> no modification
+        assert result.headers["X-Id"] == "12345"
+
+    def test_header_no_matching_key(self) -> None:
+        request = RequestData(
+            method="GET",
+            url="https://api.example.com/test",
+            headers={"X-Id": "12345"},
+        )
+        mod = Modification(
+            original_value="12345",
+            modified_value="12346",
+            location="header",
+            field_name="x-nonexistent",
+            description="test",
+        )
+        result = _apply_modification(request, mod)
+        assert result.headers["X-Id"] == "12345"
+
+    def test_set_nested_value_missing_intermediate(self) -> None:
+        data = {"a": {"b": 1}}
+        _set_nested_value(data, "a.c.d", "1", "2")
+        # Should not modify since path doesn't exist
+        assert data == {"a": {"b": 1}}
+
+    def test_set_nested_value_int_to_non_int(self) -> None:
+        data = {"id": 12345}
+        _set_nested_value(data, "id", "12345", "not_a_number")
+        assert data["id"] == "not_a_number"
