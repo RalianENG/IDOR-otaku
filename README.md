@@ -1,7 +1,7 @@
 # IDOR-otaku (idotaku)
 
 [![CI](https://github.com/RalianENG/IDOR-otaku/actions/workflows/ci.yml/badge.svg)](https://github.com/RalianENG/IDOR-otaku/actions/workflows/ci.yml)
-[![Coverage](https://img.shields.io/badge/coverage-90%25-brightgreen)](https://github.com/RalianENG/IDOR-otaku)
+[![Coverage](https://codecov.io/gh/RalianENG/IDOR-otaku/graph/badge.svg)](https://codecov.io/gh/RalianENG/IDOR-otaku)
 [![PyPI version](https://img.shields.io/pypi/v/idotaku)](https://pypi.org/project/idotaku/)
 [![Python](https://img.shields.io/pypi/pyversions/idotaku)](https://pypi.org/project/idotaku/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -38,8 +38,8 @@
 
 ## Requirements
 
-- Python 3.10+
-- mitmproxy 10.0+
+- Python 3.12+
+- mitmproxy 11.0+
 
 ## Installation
 
