@@ -38,5 +38,6 @@ nul
 
 # idotaku output
 id_tracker_report.json
+test_report.json
 *.html
 !docs/**/*.html
