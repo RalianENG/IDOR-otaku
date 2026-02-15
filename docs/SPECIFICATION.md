@@ -62,7 +62,13 @@ idotaku/
         │   ├── csv_cmd.py        # CSV export
         │   ├── sarif_cmd.py      # SARIF export
         │   ├── config_cmd.py     # Configuration management
+        │   ├── verify_cmd.py    # IDOR verification command
         │   └── interactive_cmd.py  # Interactive mode
+        ├── verify/         # Verification modules
+        │   ├── models.py       # Verification data models
+        │   ├── suggestions.py  # Parameter modification suggestions
+        │   ├── http_client.py  # httpx wrapper
+        │   └── comparison.py   # Response comparison logic
         ├── export/         # Export modules
         │   ├── chain_exporter.py    # Chain HTML output
         │   ├── sequence_exporter.py # Sequence HTML output
@@ -114,6 +120,11 @@ class FlowRecord:
     timestamp: str                   # ISO8601 timestamp
     request_ids: list[dict]          # IDs detected in request
     response_ids: list[dict]         # IDs detected in response
+    request_headers: dict[str, str]  # Full request headers
+    request_body: str | None         # Request body (truncated to max_body_size)
+    status_code: int                 # HTTP response status code
+    response_headers: dict[str, str] # Full response headers
+    response_body: str | None        # Response body (truncated to max_body_size)
 ```
 
 ### ID Detection Patterns
@@ -247,6 +258,7 @@ idotaku:
 | `target_domains` | list | `[]` (all domains) | Target domains (allowlist) |
 | `exclude_domains` | list | `[]` | Excluded domains (blocklist, takes priority) |
 | `exclude_extensions` | list | static file extensions | Extensions to exclude (.css, .js, .png, etc.) |
+| `max_body_size` | int | `51200` (50KB) | Maximum request/response body size to store in report (bytes, 0 = unlimited) |
 
 ### Default Excluded Extensions
 
@@ -287,7 +299,12 @@ Static files are automatically excluded:
       "request_ids": [],
       "response_ids": [
         {"value": "12345", "type": "numeric", "location": "body", "field": "data.id"}
-      ]
+      ],
+      "request_headers": {"authorization": "Bearer xxx", "content-type": "application/json"},
+      "request_body": null,
+      "status_code": 200,
+      "response_headers": {"content-type": "application/json"},
+      "response_body": "{\"data\": {\"id\": \"12345\", \"name\": \"user\"}}"
     }
   ],
   "tracked_ids": {
@@ -505,6 +522,44 @@ idotaku sarif [REPORT_FILE] [OPTIONS]
 
 Generates a SARIF 2.1.0 file compatible with GitHub Code Scanning and other SARIF-compatible security tools.
 
+### verify - IDOR Verification
+
+```bash
+idotaku verify [REPORT_FILE] [OPTIONS]
+```
+
+| Option | Short | Default | Description |
+|--------|-------|---------|-------------|
+| `--output` | `-o` | `verify_results.json` | Output file for verification results |
+| `--no-save` | | false | Don't save results to file |
+| `--timeout` | | 30.0 | Request timeout in seconds |
+| `--no-verify-ssl` | | false | Disable SSL certificate verification |
+| `--proxy` | | none | HTTP proxy for requests (e.g., `http://127.0.0.1:8080`) |
+| `--min-score` | | 0 | Minimum risk score to show (0-100) |
+| `--level` | `-l` | none | Filter by risk level (critical/high/medium/low) |
+
+**Interactive flow**:
+1. Load report and score IDOR candidates
+2. Display authorization warning — user must confirm they have testing authorization
+3. Select an IDOR candidate from the scored list
+4. Select which flow (request) to use for verification
+5. View original request details (headers, body, URL)
+6. Select parameter modification from suggested values (or enter custom)
+7. Preview modified request — **confirm before sending**
+8. Send request via httpx and display response
+9. Compare with original response and show verdict
+10. Continue with next candidate or finish
+
+**Verdicts**:
+| Verdict | Meaning |
+|---------|---------|
+| `VULNERABLE` | Same status code and similar content length as original |
+| `LIKELY_VULNERABLE` | Same status code but different content length |
+| `INCONCLUSIVE` | Different status code or insufficient data |
+| `NOT_VULNERABLE` | 401/403 returned — access control is in place |
+
+Results are saved to a separate JSON file (not the original report).
+
 ### version - Version Display
 
 ```bash
@@ -539,6 +594,7 @@ idotaku -i
 | click | >=8.0.0 | CLI framework |
 | rich | >=13.0.0 | Terminal output formatting |
 | questionary | >=2.0.0 | Interactive prompts |
+| httpx | >=0.25.0 | HTTP client for verify command |
 
 ---
 
@@ -569,12 +625,12 @@ idotaku -i
 - [x] Auth context analysis (`auth` command)
 - [x] CSV export (`csv` command)
 - [x] SARIF 2.1.0 export (`sarif` command)
+- [x] Interactive IDOR verification (`verify` command)
+- [x] Full HTTP data storage (request/response headers, body, status code)
 
 ### Not Yet Implemented
 
 - [ ] Real-time Web UI
-- [ ] ID substitution testing (automatic replay)
 - [ ] HAR format export (convert report to HAR)
 - [ ] GraphQL support
 - [ ] WebSocket support
-- [ ] Response status code recording

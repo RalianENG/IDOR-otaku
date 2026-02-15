@@ -14,6 +14,7 @@ from .har_cmd import har_import
 from .diff_cmd import diff
 from .auth_cmd import auth
 from .config_cmd import config
+from .verify_cmd import verify
 
 __all__ = [
     "run_proxy",
@@ -30,4 +31,5 @@ __all__ = [
     "diff",
     "auth",
     "config",
+    "verify",
 ]

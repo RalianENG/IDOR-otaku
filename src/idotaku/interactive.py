@@ -33,6 +33,7 @@ COMMANDS = [
     {"value": "lifeline", "name": "lifeline    - View parameter lifespan analysis"},
     {"value": "report", "name": "report      - View summary report"},
     {"value": "score", "name": "score       - Score IDOR candidates by risk"},
+    {"value": "verify", "name": "verify      - Verify IDOR candidates (send requests)"},
     {"value": "diff", "name": "diff        - Compare two reports"},
     {"value": "auth", "name": "auth        - Analyze auth context & cross-user access"},
     {"value": "csv", "name": "csv         - Export report to CSV"},
@@ -43,7 +44,7 @@ COMMANDS = [
 # Analysis commands that require a report file
 ANALYSIS_COMMANDS = {
     "chain", "sequence", "lifeline", "report",
-    "score", "auth", "csv", "sarif",
+    "score", "verify", "auth", "csv", "sarif",
 }
 
 

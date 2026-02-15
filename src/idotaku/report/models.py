@@ -50,6 +50,11 @@ class FlowDict(TypedDict, total=False):
     request_ids: list[FlowIDDict]
     response_ids: list[FlowIDDict]
     auth_context: Optional[AuthContextDict]
+    request_headers: dict[str, str]
+    request_body: Optional[str]
+    status_code: int
+    response_headers: dict[str, str]
+    response_body: Optional[str]
 
 
 class IDORFindingDict(TypedDict, total=False):

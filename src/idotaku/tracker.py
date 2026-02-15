@@ -54,6 +54,11 @@ class FlowRecord:
     request_ids: list[dict] = field(default_factory=list)   # [{value, type, location, field}]
     response_ids: list[dict] = field(default_factory=list)  # [{value, type, location, field}]
     auth_context: dict | None = None  # {"auth_type": str, "token_hash": str}
+    request_headers: dict[str, str] = field(default_factory=dict)
+    request_body: str | None = None
+    status_code: int = 0
+    response_headers: dict[str, str] = field(default_factory=dict)
+    response_body: str | None = None
 
 
 class IDTracker:
@@ -476,17 +481,26 @@ class IDTracker:
                 timestamp=timestamp,
             )
 
+        record = self.flow_records[flow_id]
+
+        # Store request headers and body
+        record.request_headers = dict(flow.request.headers)
+        content_type = flow.request.headers.get("content-type", "")
+        if flow.request.content:
+            body_text = flow.request.content.decode("utf-8", errors="ignore")
+            max_size = self.config.max_body_size
+            record.request_body = body_text[:max_size] if max_size > 0 else body_text
+
         # Extract authentication context
         auth_ctx = self._extract_auth_context(flow.request.headers)
         if auth_ctx:
-            self.flow_records[flow_id].auth_context = auth_ctx
+            record.auth_context = auth_ctx
 
         # Collect IDs
         found_ids: list[dict[str, Any]] = []
         found_ids.extend(self._collect_ids_from_url(url))
         found_ids.extend(self._collect_ids_from_headers(flow.request.headers))
 
-        content_type = flow.request.headers.get("content-type", "")
         if any(ct in content_type for ct in self.trackable_content_types):
             content = flow.request.content or b""
             found_ids.extend(self._collect_ids_from_body(content, content_type))
@@ -530,11 +544,21 @@ class IDTracker:
                 timestamp=timestamp,
             )
 
+        record = self.flow_records[flow_id]
+
+        # Store response status, headers, and body
+        record.status_code = flow.response.status_code
+        record.response_headers = dict(flow.response.headers)
+        content_type = flow.response.headers.get("content-type", "")
+        if flow.response.content:
+            body_text = flow.response.content.decode("utf-8", errors="ignore")
+            max_size = self.config.max_body_size
+            record.response_body = body_text[:max_size] if max_size > 0 else body_text
+
         # Collect IDs
         found_ids: list[dict[str, Any]] = []
         found_ids.extend(self._collect_ids_from_headers(flow.response.headers))
 
-        content_type = flow.response.headers.get("content-type", "")
         if any(ct in content_type for ct in self.trackable_content_types):
             content = flow.response.content or b""
             found_ids.extend(self._collect_ids_from_body(content, content_type))
@@ -594,6 +618,11 @@ class IDTracker:
                 "timestamp": flow_rec.timestamp,
                 "request_ids": flow_rec.request_ids,
                 "response_ids": flow_rec.response_ids,
+                "request_headers": flow_rec.request_headers,
+                "request_body": flow_rec.request_body,
+                "status_code": flow_rec.status_code,
+                "response_headers": flow_rec.response_headers,
+                "response_body": flow_rec.response_body,
             }
             if flow_rec.auth_context:
                 flow_dict["auth_context"] = flow_rec.auth_context

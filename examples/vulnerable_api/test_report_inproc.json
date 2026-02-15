@@ -1,0 +1,11 @@
+{
+  "summary": {
+    "total_unique_ids": 0,
+    "ids_with_origin": 0,
+    "ids_with_usage": 0,
+    "total_flows": 0
+  },
+  "flows": [],
+  "tracked_ids": {},
+  "potential_idor": []
+}
