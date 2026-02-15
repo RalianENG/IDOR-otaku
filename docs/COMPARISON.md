@@ -10,7 +10,7 @@ idotaku occupies a specific niche in the IDOR testing landscape. This document e
 | **Requires Burp** | No | Yes | Yes | No |
 | **Setup effort** | Low | Low | High | High |
 | **Finds candidates** | Yes | - | - | - |
-| **Verifies access** | No | Yes | Yes | Yes |
+| **Verifies access** | Interactive | Automatic | Automatic | Automatic |
 | **Parameter chains** | Yes | No | Partial | No |
 | **HAR import** | Yes | No | No | No |
 | **SARIF / CI/CD** | Yes | No | No | Partial |
@@ -18,16 +18,16 @@ idotaku occupies a specific niche in the IDOR testing landscape. This document e
 
 ## How idotaku Differs
 
-### Reconnaissance vs. Verification
+### Reconnaissance + Interactive Verification
 
-Most IDOR tools answer: _"Can User B access User A's resource?"_ — they **verify** broken access controls.
+Most IDOR tools answer: _"Can User B access User A's resource?"_ — they **verify** broken access controls automatically.
 
-idotaku answers a different question: _"Which IDs exist, where do they come from, and where are they used?"_ — it **maps the attack surface**.
+idotaku answers a different question: _"Which IDs exist, where do they come from, and where are they used?"_ — it **maps the attack surface**. With the `verify` command, you can also **test candidates interactively** with explicit confirmation at every step.
 
 This distinction matters because:
 
-- **Verification tools** need you to already know what to test (which endpoints, which IDs).
-- **idotaku** helps you _discover_ what to test in the first place.
+- **Automated verification tools** replay all requests — fast but noisy, and may trigger alerts.
+- **idotaku** helps you _discover_ what to test, then _selectively verify_ high-risk candidates with full control over each request.
 
 ### Typical Workflow
 
@@ -35,7 +35,7 @@ This distinction matters because:
 1. Capture traffic        →  idotaku (proxy or HAR import)
 2. Map ID landscape       →  idotaku report / chain / sequence
 3. Identify candidates    →  idotaku score
-4. Verify candidates      →  Autorize, Burp Repeater, or manual testing
+4. Verify candidates      →  idotaku verify (interactive, user-confirmed)
 5. Report findings        →  idotaku csv / sarif
 ```
 
@@ -145,4 +145,4 @@ This distinction matters because:
 | I have **HAR files** to analyze offline | **idotaku** |
 | I need **SARIF output** for GitHub | **idotaku** |
 
-idotaku works best as the **first step** in your IDOR testing workflow — use it to discover the attack surface, then hand off candidates to verification tools.
+idotaku covers the **full IDOR testing workflow** — from attack surface discovery to interactive verification. Use the `verify` command for targeted testing with full control, or hand off candidates to automated tools for broader coverage.

@@ -79,6 +79,9 @@ idotaku lifeline
 
 # Auth context analysis (detect cross-user access)
 idotaku auth
+
+# Verify IDOR candidates interactively
+idotaku verify
 ```
 
 ---
@@ -263,6 +266,7 @@ The Python script handles Windows paths and process signals correctly.
 | `idotaku sequence` | API sequence diagram (`--html` for HTML export with ID highlighting) |
 | `idotaku lifeline` | Parameter lifespan analysis |
 | `idotaku auth` | Auth context analysis (cross-user access detection) |
+| `idotaku verify` | Interactive IDOR verification (modify params → confirm → send → verdict) |
 | `idotaku diff A.json B.json` | Compare two reports |
 
 ### Configuration
@@ -397,6 +401,15 @@ idotaku score --min-score 50
 
 # Show only critical level
 idotaku score --level critical
+
+# Verify IDOR candidates interactively
+idotaku verify report.json
+
+# Verify with proxy (Burp/ZAP passthrough)
+idotaku verify report.json --proxy http://127.0.0.1:8080
+
+# Verify only critical findings
+idotaku verify report.json --level critical
 
 # Compare two reports
 idotaku diff old_report.json new_report.json

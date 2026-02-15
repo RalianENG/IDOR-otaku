@@ -9,7 +9,7 @@
 
 **IDOR-otaku** — A reconnaissance tool that tracks how IDs flow through your API traffic to uncover IDOR attack surfaces. No Burp Suite required.
 
-Unlike verification tools (Autorize, AuthMatrix) that test _whether_ access controls work, idotaku maps _where_ IDs originate, how they propagate across requests, and which ones appear without a traceable origin — revealing the attack surface before you start testing.
+Unlike fully automated verification tools (Autorize, AuthMatrix), idotaku maps _where_ IDs originate, how they propagate across requests, and which ones appear without a traceable origin — revealing the attack surface before you start testing. The `verify` command lets you selectively test IDOR candidates with explicit confirmation at every step.
 
 ### Why idotaku?
 
@@ -17,7 +17,7 @@ Unlike verification tools (Autorize, AuthMatrix) that test _whether_ access cont
 - **No Burp Suite required** — `pip install idotaku` and go. Works as a standalone CLI tool with mitmproxy.
 - **HAR import** — Analyze traffic captured from Chrome DevTools, Burp Suite, or any other tool. No proxy setup needed for offline analysis.
 - **CI/CD ready** — SARIF export integrates directly with GitHub Code Scanning. CSV export for custom pipelines.
-- **Complements existing tools** — Use idotaku for reconnaissance, then feed candidates into Autorize/Burp for verification.
+- **Built-in verification** — `verify` command sends modified requests with user confirmation at every step. Supports proxy passthrough (Burp/ZAP).
 
 > **IDOR (Insecure Direct Object Reference)** is a vulnerability where an application exposes internal object IDs (user IDs, order numbers, etc.) without proper authorization checks, allowing attackers to access other users' data by manipulating these IDs.
 
@@ -42,9 +42,10 @@ Unlike verification tools (Autorize, AuthMatrix) that test _whether_ access cont
 ```
 
 1. **Intercept** — Proxies browser traffic via mitmproxy
-2. **Track** — Records where IDs first appear (response) and where they are used (request)
+2. **Track** — Records full HTTP data: where IDs first appear (response) and where they are used (request), including headers, body, and status codes
 3. **Detect** — Flags IDs used in requests that never appeared in any response (IDOR candidates)
 4. **Visualize** — Renders parameter chains and API sequence diagrams as interactive HTML
+5. **Verify** — Interactively test IDOR candidates by sending modified requests with user confirmation
 
 ## Requirements
 
@@ -133,6 +134,7 @@ for a step-by-step walkthrough.
 | `sequence` | API sequence diagram with `--html` export and ID highlighting |
 | `lifeline` | Show parameter lifespan analysis |
 | `score` | Risk-score IDOR candidates (critical / high / medium / low) |
+| `verify` | Interactive IDOR verification — send modified requests with user confirmation |
 | `auth` | Detect cross-user access patterns via auth context |
 | `diff` | Compare two reports and show changes |
 | `interactive` | Launch interactive mode with guided menus |
@@ -164,6 +166,7 @@ Interactive mode (`-i`) also provides a guided **setup wizard** for editing sett
 from idotaku.report import load_report, score_all_findings, diff_reports
 from idotaku.export import export_csv, export_sarif
 from idotaku.import_har import import_har
+from idotaku.verify import VerifyHttpClient, compare_responses, suggest_modifications
 
 # Load and score
 data = load_report("report.json")
@@ -177,8 +180,10 @@ export_sarif("findings.sarif.json", data)
 report = import_har("capture.har")
 
 # Diff two reports
-from idotaku.report import diff_reports
 diff = diff_reports(load_report("old.json"), load_report("new.json"))
+
+# Verification helpers
+suggestions = suggest_modifications("12345", "numeric")
 ```
 
 ## Use Cases
