@@ -69,6 +69,9 @@ class IdotakuConfig:
     # Exclude domains (blacklist)
     exclude_domains: list[str] = field(default_factory=list)
 
+    # Maximum body size to store in report (bytes, 0 = unlimited)
+    max_body_size: int = 51200  # 50KB
+
     # Exclude extensions (static files, etc.)
     exclude_extensions: list[str] = field(default_factory=lambda: [
         # Styles and scripts
@@ -176,6 +179,7 @@ KNOWN_KEYS = {
     "trackable_content_types", "ignore_headers",
     "extra_ignore_headers", "target_domains",
     "exclude_domains", "exclude_extensions",
+    "max_body_size",
 }
 
 
@@ -404,6 +408,13 @@ def load_config(config_path: str | Path | None = None) -> IdotakuConfig:
             print("Error: 'exclude_extensions' must be a list", file=sys.stderr)
             sys.exit(1)
         config.exclude_extensions = [str(e) for e in data["exclude_extensions"]]
+
+    if "max_body_size" in data:
+        try:
+            config.max_body_size = int(data["max_body_size"])
+        except (ValueError, TypeError):
+            print(f"Error: max_body_size must be an integer, got: {data['max_body_size']}", file=sys.stderr)
+            sys.exit(1)
 
     return config
 

@@ -270,6 +270,34 @@ def _parse_har_entry(
                 res_text, res_content_type, patterns, exclude_patterns, min_numeric
             ))
 
+    # Store full request/response data
+    request_headers = {
+        h.get("name", ""): h.get("value", "")
+        for h in request.get("headers", [])
+        if not h.get("name", "").startswith(":")
+    }
+
+    request_body = None
+    if req_body:
+        req_text_full = req_body.get("text", "")
+        if req_text_full:
+            max_size = config.max_body_size
+            request_body = req_text_full[:max_size] if max_size > 0 else req_text_full
+
+    status_code = response.get("status", 0)
+
+    response_headers = {
+        h.get("name", ""): h.get("value", "")
+        for h in response.get("headers", [])
+    }
+
+    response_body = None
+    if res_content:
+        res_text_full = res_content.get("text", "")
+        if res_text_full:
+            max_size = config.max_body_size
+            response_body = res_text_full[:max_size] if max_size > 0 else res_text_full
+
     return {
         "flow_id": flow_id,
         "method": method,
@@ -277,6 +305,11 @@ def _parse_har_entry(
         "timestamp": timestamp,
         "request_ids": request_ids,
         "response_ids": response_ids,
+        "request_headers": request_headers,
+        "request_body": request_body,
+        "status_code": status_code,
+        "response_headers": response_headers,
+        "response_body": response_body,
     }
 
 

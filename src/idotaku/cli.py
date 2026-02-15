@@ -17,6 +17,7 @@ from .commands import (
     diff,
     auth,
     config,
+    verify,
 )
 
 
@@ -64,6 +65,7 @@ main.add_command(har_import)
 main.add_command(diff)
 main.add_command(auth)
 main.add_command(config)
+main.add_command(verify)
 
 
 if __name__ == "__main__":
