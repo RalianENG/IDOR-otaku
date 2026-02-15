@@ -5,7 +5,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python](https://img.shields.io/pypi/pyversions/idotaku)](https://pypi.org/project/idotaku/)
 
-**IDOR-otaku** — mitmproxy ベースの IDOR 検出ツール。通信を傍受し、パラメータの関係性を分析して、安全でない直接オブジェクト参照（IDOR）を検出します。
+**IDOR-otaku** — mitmproxy ベースの IDOR 検出・検証ツール。通信を傍受し、パラメータの関係性を分析して、安全でない直接オブジェクト参照（IDOR）を検出します。`verify` コマンドで候補の検証も可能。
 
 > **IDOR（Insecure Direct Object Reference）** とは、ユーザーIDや注文番号などの内部オブジェクトIDが適切な認可チェックなしに公開され、攻撃者がIDを操作することで他のユーザーのデータにアクセスできてしまう脆弱性です。
 
@@ -30,9 +30,10 @@
 ```
 
 1. **傍受** — mitmproxy 経由でブラウザの通信をプロキシ
-2. **追跡** — IDがレスポンスで最初に出現した場所（Origin）とリクエストで使用された場所（Usage）を記録
+2. **追跡** — IDがレスポンスで最初に出現した場所（Origin）とリクエストで使用された場所（Usage）を記録（ヘッダー・ボディ・ステータスコード含む全HTTP情報を保存）
 3. **検出** — レスポンスで一度も出現していないのにリクエストで使用されているIDをIDOR候補としてフラグ
 4. **可視化** — パラメータチェーンやAPIシーケンス図をインタラクティブHTMLでレンダリング
+5. **検証** — IDOR候補に対して変更リクエストを送信し、脆弱性を対話的にテスト（全ステップでユーザー確認必須）
 
 ## 動作要件
 
@@ -63,6 +64,52 @@ idotaku sequence id_tracker_report.json --html sequence.html
 idotaku import-har capture.har -o report.json
 ```
 
+## デモ
+
+内蔵の脆弱APIを使って、すべての検出機能を試すことができます：
+
+```bash
+cd examples/vulnerable_api
+
+# ワンコマンドデモ（Linux/macOS）
+bash run_demo.sh
+
+# クロスプラットフォーム（Windows/macOS/Linux）
+python run_demo.py
+```
+
+デモは脆弱な FastAPI サーバーを起動し、idotaku 経由でトラフィックをプロキシし、
+自動攻撃シナリオを実行して分析レポートを生成します。
+
+### 出力例
+
+**リスクスコアリング** — 1つのテストシナリオから4段階の重要度を検出：
+
+```
+Score  Level     ID Value              Type     Factors
+─────  ────────  ────────────────────  ───────  ──────────────────────────
+89     CRITICAL  1003                  numeric  DELETE, url_path, numeric
+65     HIGH      1002                  numeric  PUT, url_path, numeric
+46     MEDIUM    b2c3d4e5-f6a7-...     uuid     POST, body, uuid
+18     LOW       doc_YzAbCdEfGh...     token    GET, header, token
+```
+
+![Risk Scores](images/demo-score.png)
+
+**パラメータチェーン** と **シーケンス図** はインタラクティブHTMLとしてエクスポート：
+
+```bash
+# デモスクリプトが生成するファイル:
+# examples/vulnerable_api/chain.html     — カード型パラメータチェーンツリー
+# examples/vulnerable_api/sequence.html  — UML形式APIシーケンス図
+```
+
+![Chain HTML](images/demo-chain-html.png)
+![Sequence Diagram](images/demo-sequence-html.png)
+
+詳細は [examples/vulnerable_api/](../examples/vulnerable_api/) を参照、
+または [Quick Start Guide](QUICKSTART.md#try-the-demo) でステップバイステップの手順を確認できます。
+
 ## コマンド一覧
 
 ### 分析
@@ -74,6 +121,7 @@ idotaku import-har capture.har -o report.json
 | `sequence` | パラメータフロー付きAPIシーケンス表示（`--html` エクスポート対応） |
 | `lifeline` | パラメータのライフスパン表示 |
 | `score` | IDOR候補のリスクスコアリング（critical / high / medium / low） |
+| `verify` | IDOR候補の対話型検証（パラメータ変更 → 確認 → 送信 → 判定） |
 | `auth` | 認証コンテキスト分析（クロスユーザーアクセス検出） |
 | `diff` | 2つのレポートの差分比較 |
 | `interactive` | 対話モード（メニュー選択式） |

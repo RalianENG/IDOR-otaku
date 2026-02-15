@@ -321,6 +321,100 @@ class TestImportHar:
         assert report["summary"]["total_flows"] == 0
         assert report["potential_idor"] == []
 
+    def test_flows_contain_request_response_data(self, sample_har_file):
+        """Test that flows include full HTTP data fields."""
+        report = import_har(sample_har_file)
+        for flow in report["flows"]:
+            assert "request_headers" in flow
+            assert "status_code" in flow
+            assert "response_headers" in flow
+            # request_body and response_body may be None
+            assert "request_body" in flow
+            assert "response_body" in flow
+
+    def test_status_code_captured(self, sample_har_file):
+        report = import_har(sample_har_file)
+        # At least one flow should have a non-zero status code
+        statuses = [f.get("status_code", 0) for f in report["flows"]]
+        assert any(s > 0 for s in statuses)
+
+    def test_response_body_captured(self, sample_har_file):
+        report = import_har(sample_har_file)
+        # The first flow has a JSON response body
+        bodies = [f.get("response_body") for f in report["flows"]]
+        assert any(b is not None and len(b) > 0 for b in bodies)
+
+    def test_har_with_post_body(self, tmp_path):
+        """Test HAR entry with postData is captured."""
+        har = {
+            "log": {
+                "version": "1.2",
+                "entries": [{
+                    "request": {
+                        "method": "POST",
+                        "url": "https://api.example.com/users",
+                        "headers": [
+                            {"name": "Content-Type", "value": "application/json"},
+                        ],
+                        "postData": {
+                            "mimeType": "application/json",
+                            "text": '{"name": "test", "id": 12345}',
+                        },
+                    },
+                    "response": {
+                        "status": 201,
+                        "headers": [
+                            {"name": "Content-Type", "value": "application/json"},
+                        ],
+                        "content": {
+                            "mimeType": "application/json",
+                            "text": '{"id": 12345, "name": "test"}',
+                        },
+                    },
+                    "startedDateTime": "2024-01-01T10:00:00Z",
+                }],
+            },
+        }
+        har_file = tmp_path / "post.har"
+        with open(har_file, "w") as f:
+            json.dump(har, f)
+
+        report = import_har(har_file)
+        assert len(report["flows"]) == 1
+        flow = report["flows"][0]
+        assert flow["request_body"] == '{"name": "test", "id": 12345}'
+        assert flow["status_code"] == 201
+        assert flow["response_body"] is not None
+
+    def test_har_without_response_body(self, tmp_path):
+        """Test HAR entry with no response content text."""
+        har = {
+            "log": {
+                "version": "1.2",
+                "entries": [{
+                    "request": {
+                        "method": "DELETE",
+                        "url": "https://api.example.com/users/100",
+                        "headers": [],
+                    },
+                    "response": {
+                        "status": 204,
+                        "headers": [],
+                        "content": {},
+                    },
+                    "startedDateTime": "2024-01-01T10:00:00Z",
+                }],
+            },
+        }
+        har_file = tmp_path / "delete.har"
+        with open(har_file, "w") as f:
+            json.dump(har, f)
+
+        report = import_har(har_file)
+        flow = report["flows"][0]
+        assert flow["status_code"] == 204
+        assert flow["response_body"] is None
+
 
 class TestImportHarToFile:
     def test_creates_output(self, sample_har_file, tmp_path):

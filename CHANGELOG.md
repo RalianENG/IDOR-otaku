@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### Added
 
+- **IDOR Verification**: `verify` command for interactive IDOR verification — select candidates, modify parameters, confirm before sending, compare responses with automated verdict (VULNERABLE / LIKELY_VULNERABLE / INCONCLUSIVE / NOT_VULNERABLE)
+- **Full HTTP Data Storage**: Tracker and HAR importer now save complete request/response data (headers, body, status code) in report JSON. Configurable body size limit via `max_body_size` (default 50KB)
 - **Risk Scoring**: `score` command assigns risk score (0-100) and level (critical/high/medium/low) to each IDOR candidate based on HTTP method, parameter location, ID type, and usage patterns
 - **HAR Import**: `import-har` command parses HAR files (Chrome DevTools, Burp Suite) and generates the same report format as the proxy tracker
 - **Diff Analysis**: `diff` command compares two reports (before/after) showing new/removed IDOR candidates, tracked IDs, and flow count changes
@@ -20,7 +22,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 
 ### Changed
 
-- Interactive mode now includes all new commands (score, diff, auth, csv, sarif, import-har, config)
+- Interactive mode now includes all new commands (score, verify, diff, auth, csv, sarif, import-har, config)
 - Tracker now captures authentication context (Authorization header, session cookies) per flow
 - Documentation translated to English (QUICKSTART.md, SPECIFICATION.md)
 

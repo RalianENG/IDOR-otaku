@@ -79,7 +79,171 @@ idotaku lifeline
 
 # Auth context analysis (detect cross-user access)
 idotaku auth
+
+# Verify IDOR candidates interactively
+idotaku verify
 ```
+
+---
+
+## Try the Demo
+
+The `examples/vulnerable_api/` directory contains a complete demo with a purposely
+vulnerable FastAPI server and an automated attack scenario.
+
+### Prerequisites
+
+- Python 3.12+
+- idotaku installed (`pip install -e .` from the project root)
+- mitmproxy installed (included as a dependency of idotaku)
+
+### Option A: One-Command Demo
+
+```bash
+cd examples/vulnerable_api
+
+# Linux/macOS
+bash run_demo.sh
+
+# Windows (or any platform)
+python run_demo.py
+```
+
+This script automatically:
+1. Installs demo dependencies (fastapi, uvicorn, requests)
+2. Starts the vulnerable API server on port 3000
+3. Starts mitmdump proxy on port 8080 with the idotaku tracker
+4. Runs an 11-phase attack scenario through the proxy
+5. Stops the proxy (generating the report)
+6. Runs all analysis commands (report, score, chain, auth)
+7. Generates HTML exports (chain.html, sequence.html)
+
+### Option B: Manual Step-by-Step
+
+If you prefer to run each step yourself:
+
+#### Terminal 1: Start the Vulnerable API
+
+```bash
+cd examples/vulnerable_api
+pip install -r requirements.txt
+python server.py
+```
+
+The server starts at http://localhost:3000 with 3 test users (alice, bob, charlie)
+and intentional IDOR vulnerabilities across 13+ endpoints.
+
+#### Terminal 2: Start the idotaku Proxy
+
+Using the idotaku CLI (launches a browser and web UI):
+
+```bash
+cd examples/vulnerable_api
+idotaku --port 8080 -o test_report.json -c idotaku.yaml
+```
+
+Or using mitmdump directly (headless, no browser):
+
+```bash
+cd examples/vulnerable_api
+TRACKER=$(python -c "from idotaku.browser import get_tracker_script_path; print(get_tracker_script_path())")
+mitmdump -s "$TRACKER" --listen-port 8080 \
+    --set idotaku_config="$(pwd)/idotaku.yaml" \
+    --set idotaku_output="$(pwd)/test_report.json" \
+    --quiet
+```
+
+#### Terminal 3: Run the Test Scenario
+
+```bash
+cd examples/vulnerable_api
+python test_scenario.py
+```
+
+The scenario logs each phase as it runs:
+
+```
+[Phase 1] Alice login
+[Phase 2] Alice accesses own data
+[Phase 3] CRITICAL IDOR - Alice attacks Charlie (1003) via admin endpoints
+[Phase 4] HIGH IDOR - Alice updates Bob's user via PUT
+[Phase 5] MEDIUM IDOR - Alice accesses Bob's profile via UUID in body
+[Phase 6] LOW IDOR - Alice accesses Bob's document via header token
+[Phase 7] Parameter chain - Order CRUD
+[Phase 8] Bob login
+[Phase 9] Cross-user detection - Bob accesses Alice's data
+[Phase 10] Alice lists her own profiles (producer)
+[Phase 11] Alice lists her own documents (producer)
+```
+
+#### Stop and Analyze
+
+Stop the proxy (Ctrl+C in Terminal 2), then:
+
+```bash
+cd examples/vulnerable_api
+
+# Summary report
+idotaku report test_report.json
+
+# Risk scoring (the key output)
+idotaku score test_report.json
+
+# Parameter chain tree
+idotaku chain test_report.json
+
+# Cross-user access detection
+idotaku auth test_report.json
+
+# Generate interactive HTML reports
+idotaku chain test_report.json --html chain.html
+idotaku sequence test_report.json --html sequence.html
+```
+
+### Expected Results
+
+The test scenario produces detections at every severity level:
+
+| Level    | Score | ID                                  | Attack Vector                            |
+|----------|-------|-------------------------------------|------------------------------------------|
+| CRITICAL | 89    | `1003` (charlie)                    | 3 admin endpoints (delete, role, action) |
+| HIGH     | 65    | `1002` (bob)                        | PUT /api/users/1002                      |
+| MEDIUM   | 46    | `b2c3d4e5-...` (bob's profile UUID) | POST profiles/view + profiles/update     |
+| LOW      | 18    | `doc_YzAbCd...` (bob's doc token)   | GET documents/by-header via header       |
+
+The chain analysis shows how IDs flow through the order CRUD lifecycle:
+`POST /api/orders` (creates order_id) → `GET /api/orders/{id}` → `PATCH /api/orders/{id}` → `DELETE /api/orders/{id}`
+
+The auth analysis detects that both Alice and Bob access user ID `1001` with
+different auth tokens — a cross-user access pattern.
+
+### HTML Reports
+
+Open the generated HTML files in a browser:
+
+- **chain.html** — Interactive card-based tree showing parameter chains.
+  Click nodes to expand/collapse. Shows Consumes/Produces chips for each API call.
+- **sequence.html** — UML-style sequence diagram of all API calls.
+  Click ID chips to highlight all occurrences across the timeline.
+  IDOR candidates are marked with red warning badges.
+
+### Demo Troubleshooting
+
+**Port already in use:**
+
+```bash
+# Use custom ports
+python run_demo.py --api-port 4000 --proxy-port 9090
+
+# Or for the shell script
+API_PORT=4000 PROXY_PORT=9090 bash run_demo.sh
+```
+
+**Empty report:** Make sure the proxy is running before the test scenario.
+The tracker records traffic in real-time and writes the report on shutdown.
+
+**Windows path issues:** Use `python run_demo.py` instead of `bash run_demo.sh`.
+The Python script handles Windows paths and process signals correctly.
 
 ---
 
@@ -102,6 +266,7 @@ idotaku auth
 | `idotaku sequence` | API sequence diagram (`--html` for HTML export with ID highlighting) |
 | `idotaku lifeline` | Parameter lifespan analysis |
 | `idotaku auth` | Auth context analysis (cross-user access detection) |
+| `idotaku verify` | Interactive IDOR verification (modify params → confirm → send → verdict) |
 | `idotaku diff A.json B.json` | Compare two reports |
 
 ### Configuration
@@ -236,6 +401,15 @@ idotaku score --min-score 50
 
 # Show only critical level
 idotaku score --level critical
+
+# Verify IDOR candidates interactively
+idotaku verify report.json
+
+# Verify with proxy (Burp/ZAP passthrough)
+idotaku verify report.json --proxy http://127.0.0.1:8080
+
+# Verify only critical findings
+idotaku verify report.json --level critical
 
 # Compare two reports
 idotaku diff old_report.json new_report.json

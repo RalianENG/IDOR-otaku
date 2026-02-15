@@ -1,0 +1,76 @@
+{
+  "summary": {
+    "total_unique_ids": 2,
+    "ids_with_origin": 2,
+    "ids_with_usage": 0,
+    "total_flows": 1
+  },
+  "flows": [
+    {
+      "flow_id": "ca6fae9c-eaf0-432b-8d27-a6643db0450a",
+      "method": "GET",
+      "url": "http://127.0.0.1:3008/api/health",
+      "timestamp": "2026-02-16T02:19:13.181072",
+      "request_ids": [],
+      "response_ids": [
+        {
+          "value": "2026",
+          "type": "numeric",
+          "location": "body",
+          "field": "timestamp"
+        },
+        {
+          "value": "194021",
+          "type": "numeric",
+          "location": "body",
+          "field": "timestamp"
+        }
+      ],
+      "request_headers": {
+        "Accept-Encoding": "identity",
+        "Host": "127.0.0.1:3008",
+        "User-Agent": "Python-urllib/3.13",
+        "Connection": "close"
+      },
+      "request_body": null,
+      "status_code": 200,
+      "response_headers": {
+        "date": "Sun, 15 Feb 2026 17:19:13 GMT",
+        "server": "uvicorn",
+        "content-length": "62",
+        "content-type": "application/json",
+        "Connection": "close"
+      },
+      "response_body": "{\"status\":\"ok\",\"timestamp\":\"2026-02-15T17:19:13.194021+00:00\"}"
+    }
+  ],
+  "tracked_ids": {
+    "2026": {
+      "type": "numeric",
+      "first_seen": "2026-02-16T02:19:13.197112",
+      "origin": {
+        "url": "http://127.0.0.1:3008/api/health",
+        "method": "GET",
+        "location": "body",
+        "field_name": "timestamp",
+        "timestamp": "2026-02-16T02:19:13.197112"
+      },
+      "usage_count": 0,
+      "usages": []
+    },
+    "194021": {
+      "type": "numeric",
+      "first_seen": "2026-02-16T02:19:13.197112",
+      "origin": {
+        "url": "http://127.0.0.1:3008/api/health",
+        "method": "GET",
+        "location": "body",
+        "field_name": "timestamp",
+        "timestamp": "2026-02-16T02:19:13.197112"
+      },
+      "usage_count": 0,
+      "usages": []
+    }
+  },
+  "potential_idor": []
+}

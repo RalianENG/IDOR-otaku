@@ -16,12 +16,25 @@ A FastAPI server designed to exercise every detection capability of idotaku:
 ## Prerequisites
 
 ```bash
-pip install fastapi uvicorn requests
+pip install -r requirements.txt
 ```
 
 ## Quick Start
 
-Open 3 terminals:
+### One-Command Demo
+
+```bash
+# Linux/macOS
+bash run_demo.sh
+
+# Windows / cross-platform
+python run_demo.py
+```
+
+This automatically starts the server, runs the attack scenario through a proxy,
+and generates all analysis reports including interactive HTML exports.
+
+### Manual Setup (3 Terminals)
 
 ```bash
 # Terminal 1: Start vulnerable API
