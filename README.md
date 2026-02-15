@@ -114,10 +114,9 @@ Score  Level     ID Value              Type     Factors
 # examples/vulnerable_api/sequence.html  — UML-style API sequence diagram
 ```
 
-<!-- TODO: Add screenshots after running the demo
 ![Risk Scores](docs/images/demo-score.png)
 ![Chain HTML](docs/images/demo-chain-html.png)
--->
+![Sequence Diagram](docs/images/demo-sequence-html.png)
 
 See [examples/vulnerable_api/](examples/vulnerable_api/) for details, or the
 [Quick Start Guide](https://github.com/RalianENG/IDOR-otaku/blob/main/docs/QUICKSTART.md#try-the-demo)
