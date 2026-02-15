@@ -31,7 +31,14 @@ jobs:
         run: mypy src/idotaku/
 
       - name: Test
-        run: pytest --cov=idotaku --cov-report=term-missing
+        run: pytest --cov=idotaku --cov-branch --cov-report=xml --cov-report=term-missing
+
+      - name: Upload coverage to Codecov
+        if: matrix.python-version == '3.12'
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: coverage.xml
 
   sbom:
     runs-on: ubuntu-latest
