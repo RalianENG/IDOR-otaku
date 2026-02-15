@@ -7,7 +7,17 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
 
-**IDOR-otaku** — mitmproxy-based IDOR detection tool that intercepts traffic and analyzes parameter relationships to find insecure direct object references.
+**IDOR-otaku** — A reconnaissance tool that tracks how IDs flow through your API traffic to uncover IDOR attack surfaces. No Burp Suite required.
+
+Unlike verification tools (Autorize, AuthMatrix) that test _whether_ access controls work, idotaku maps _where_ IDs originate, how they propagate across requests, and which ones appear without a traceable origin — revealing the attack surface before you start testing.
+
+### Why idotaku?
+
+- **ID lifecycle visibility** — Tracks where IDs are born (responses) and where they travel (requests). Visualizes parameter chains and API sequence diagrams as interactive HTML.
+- **No Burp Suite required** — `pip install idotaku` and go. Works as a standalone CLI tool with mitmproxy.
+- **HAR import** — Analyze traffic captured from Chrome DevTools, Burp Suite, or any other tool. No proxy setup needed for offline analysis.
+- **CI/CD ready** — SARIF export integrates directly with GitHub Code Scanning. CSV export for custom pipelines.
+- **Complements existing tools** — Use idotaku for reconnaissance, then feed candidates into Autorize/Burp for verification.
 
 > **IDOR (Insecure Direct Object Reference)** is a vulnerability where an application exposes internal object IDs (user IDs, order numbers, etc.) without proper authorization checks, allowing attackers to access other users' data by manipulating these IDs.
 
@@ -124,10 +134,25 @@ from idotaku.report import diff_reports
 diff = diff_reports(load_report("old.json"), load_report("new.json"))
 ```
 
+## Use Cases
+
+### Bug Bounty Reconnaissance
+Capture traffic while browsing a target, then analyze the report to find IDs that appear in requests without a traceable origin. These are your first IDOR candidates to investigate.
+
+### Penetration Test Preparation
+Before diving into manual testing, run idotaku to map the full ID landscape. The parameter chain analysis shows which API sequences share IDs — helping you prioritize where to test access controls.
+
+### CI/CD Security Gate
+Import HAR files from automated browser tests, generate a report, and export to SARIF. Integrate with GitHub Code Scanning to flag new IDOR candidates on every pull request.
+
+### Post-Capture Offline Analysis
+Already have traffic from Burp, Chrome DevTools, or another proxy? Import the HAR file and analyze it without setting up mitmproxy.
+
 ## Documentation
 
 - [Quick Start Guide](https://github.com/RalianENG/IDOR-otaku/blob/main/docs/QUICKSTART.md)
 - [Specification](https://github.com/RalianENG/IDOR-otaku/blob/main/docs/SPECIFICATION.md)
+- [Comparison with Other Tools](https://github.com/RalianENG/IDOR-otaku/blob/main/docs/COMPARISON.md)
 - [日本語 / Japanese README](https://github.com/RalianENG/IDOR-otaku/blob/main/docs/README_ja.md)
 
 ## Contributing
