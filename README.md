@@ -106,6 +106,8 @@ Score  Level     ID Value              Type     Factors
 18     LOW       doc_YzAbCdEfGh...     token    GET, header, token
 ```
 
+![Risk Scores](docs/images/demo-score.png)
+
 **Parameter Chains** and **Sequence Diagrams** are exported as interactive HTML:
 
 ```bash
@@ -114,7 +116,6 @@ Score  Level     ID Value              Type     Factors
 # examples/vulnerable_api/sequence.html  — UML-style API sequence diagram
 ```
 
-![Risk Scores](docs/images/demo-score.png)
 ![Chain HTML](docs/images/demo-chain-html.png)
 ![Sequence Diagram](docs/images/demo-sequence-html.png)
 

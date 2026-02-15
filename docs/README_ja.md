@@ -64,6 +64,52 @@ idotaku sequence id_tracker_report.json --html sequence.html
 idotaku import-har capture.har -o report.json
 ```
 
+## デモ
+
+内蔵の脆弱APIを使って、すべての検出機能を試すことができます：
+
+```bash
+cd examples/vulnerable_api
+
+# ワンコマンドデモ（Linux/macOS）
+bash run_demo.sh
+
+# クロスプラットフォーム（Windows/macOS/Linux）
+python run_demo.py
+```
+
+デモは脆弱な FastAPI サーバーを起動し、idotaku 経由でトラフィックをプロキシし、
+自動攻撃シナリオを実行して分析レポートを生成します。
+
+### 出力例
+
+**リスクスコアリング** — 1つのテストシナリオから4段階の重要度を検出：
+
+```
+Score  Level     ID Value              Type     Factors
+─────  ────────  ────────────────────  ───────  ──────────────────────────
+89     CRITICAL  1003                  numeric  DELETE, url_path, numeric
+65     HIGH      1002                  numeric  PUT, url_path, numeric
+46     MEDIUM    b2c3d4e5-f6a7-...     uuid     POST, body, uuid
+18     LOW       doc_YzAbCdEfGh...     token    GET, header, token
+```
+
+![Risk Scores](images/demo-score.png)
+
+**パラメータチェーン** と **シーケンス図** はインタラクティブHTMLとしてエクスポート：
+
+```bash
+# デモスクリプトが生成するファイル:
+# examples/vulnerable_api/chain.html     — カード型パラメータチェーンツリー
+# examples/vulnerable_api/sequence.html  — UML形式APIシーケンス図
+```
+
+![Chain HTML](images/demo-chain-html.png)
+![Sequence Diagram](images/demo-sequence-html.png)
+
+詳細は [examples/vulnerable_api/](../examples/vulnerable_api/) を参照、
+または [Quick Start Guide](QUICKSTART.md#try-the-demo) でステップバイステップの手順を確認できます。
+
 ## コマンド一覧
 
 ### 分析
