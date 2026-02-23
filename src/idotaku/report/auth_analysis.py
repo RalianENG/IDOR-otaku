@@ -2,6 +2,7 @@
 
 from collections import defaultdict
 from dataclasses import dataclass, field
+from typing import Any
 
 from ..utils.url import normalize_api_path
 
@@ -13,10 +14,10 @@ class CrossUserAccess:
     id_value: str
     url_pattern: str
     auth_tokens: list[str] = field(default_factory=list)
-    flows: list[dict] = field(default_factory=list)
+    flows: list[dict[str, Any]] = field(default_factory=list)
 
 
-def detect_cross_user_access(flows: list[dict]) -> list[CrossUserAccess]:
+def detect_cross_user_access(flows: list[dict[str, Any]]) -> list[CrossUserAccess]:
     """Detect cases where different auth tokens access the same resource with the same ID.
 
     Args:
@@ -25,7 +26,7 @@ def detect_cross_user_access(flows: list[dict]) -> list[CrossUserAccess]:
     Returns:
         List of CrossUserAccess instances
     """
-    access_map: dict[tuple[str, str], dict] = defaultdict(
+    access_map: dict[tuple[str, str], dict[str, Any]] = defaultdict(
         lambda: {"tokens": set(), "flows": []}
     )
 
@@ -63,9 +64,9 @@ def detect_cross_user_access(flows: list[dict]) -> list[CrossUserAccess]:
 
 
 def enrich_idor_with_auth(
-    potential_idor: list[dict],
+    potential_idor: list[dict[str, Any]],
     cross_user_accesses: list[CrossUserAccess],
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     """Enrich IDOR findings with cross-user access info.
 
     Adds 'cross_user': True and 'auth_tokens' to findings that

@@ -9,6 +9,6 @@ console = Console()
 
 
 @click.command()
-def version():
+def version() -> None:
     """Show version."""
     print_banner(console)

@@ -218,10 +218,11 @@ pip install -e ".[dev]"
 pytest
 
 # カバレッジ付きテスト
-pytest --cov=idotaku --cov-report=term-missing
+pytest --cov=idotaku --cov-branch
 
-# Lint
-ruff check src/
+# Lint & 型チェック
+ruff check src/ tests/
+mypy src/idotaku/
 ```
 
 バグ報告やプルリクエストは [GitHub Issues](https://github.com/RalianENG/IDOR-otaku/issues) にてお待ちしています。

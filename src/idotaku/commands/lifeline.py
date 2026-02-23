@@ -1,5 +1,6 @@
 """Lifeline command - show parameter lifeline (lifespan and usage across API calls)."""
 
+from typing import Any
 from urllib.parse import urlparse
 
 import click
@@ -15,7 +16,7 @@ console = Console()
 @click.option("--min-uses", "-m", default=1, help="Minimum usage count to show")
 @click.option("--sort", "-s", type=click.Choice(["lifespan", "uses", "first"]), default="lifespan",
               help="Sort by: lifespan (longest first), uses (most used), first (first seen)")
-def lifeline(report_file, min_uses, sort):
+def lifeline(report_file: str, min_uses: int, sort: str) -> None:
     """Show parameter lifeline (lifespan and usage across API calls).
 
     Visualizes how long each parameter lives and how it's used over time.
@@ -32,7 +33,7 @@ def lifeline(report_file, min_uses, sort):
     total_flows = len(sorted_flows)
 
     # Build param lifecycle: param_value -> {first_idx, last_idx, events}
-    param_lifecycle = {}
+    param_lifecycle: dict[str, dict[str, Any]] = {}
 
     for i, flow in enumerate(sorted_flows):
         method = flow.get("method", "?")

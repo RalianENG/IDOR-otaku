@@ -212,17 +212,18 @@ Already have traffic from Burp, Chrome DevTools, or another proxy? Import the HA
 ```bash
 # Clone and install with dev dependencies
 git clone https://github.com/RalianENG/IDOR-otaku.git
-cd idotaku
+cd IDOR-otaku
 pip install -e ".[dev]"
 
 # Run tests
 pytest
 
 # Run tests with coverage
-pytest --cov=idotaku
+pytest --cov=idotaku --cov-branch
 
-# Lint
-ruff check src/
+# Lint & type check
+ruff check src/ tests/
+mypy src/idotaku/
 ```
 
 Bug reports and pull requests are welcome on [GitHub Issues](https://github.com/RalianENG/IDOR-otaku/issues).

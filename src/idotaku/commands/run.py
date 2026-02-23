@@ -15,7 +15,7 @@ from ..browser import find_browser, find_browser_by_name, find_mitmweb, get_trac
 console = Console()
 
 
-def run_proxy(port, web_port, output, min_numeric, config, no_browser, browser):
+def run_proxy(port: int, web_port: int, output: str, min_numeric: int, config: str | None, no_browser: bool, browser: str) -> None:
     """Run mitmweb proxy with browser.
 
     This is the main functionality when idotaku is called without subcommand.

@@ -25,13 +25,13 @@ jobs:
         run: pip install -e ".[dev]"
 
       - name: Lint
-        run: ruff check src/
+        run: ruff check src/ tests/
 
       - name: Type check
         run: mypy src/idotaku/
 
       - name: Test
-        run: pytest --cov=idotaku --cov-branch --cov-report=xml --cov-report=term-missing
+        run: pytest --cov=idotaku --cov-branch --cov-fail-under=90 --cov-report=xml --cov-report=term-missing
 
       - name: Upload coverage to Codecov
         if: matrix.python-version == '3.12'
