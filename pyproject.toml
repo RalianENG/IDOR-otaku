@@ -39,11 +39,11 @@ classifiers = [
     "Typing :: Typed",
 ]
 dependencies = [
-    "mitmproxy>=11.0.0",
-    "click>=8.0.0",
-    "rich>=13.0.0",
-    "questionary>=2.0.0",
-    "httpx>=0.25.0",
+    "mitmproxy>=11.0.0,<13",
+    "click>=8.0.0,<9",
+    "rich>=13.0.0,<14",
+    "questionary>=2.0.0,<3",
+    "httpx>=0.25.0,<1",
 ]
 
 [project.optional-dependencies]

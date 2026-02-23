@@ -352,7 +352,9 @@ def load_config(config_path: str | Path | None = None) -> IdotakuConfig:
         if not isinstance(data["patterns"], dict):
             print("Error: 'patterns' must be a mapping (name: regex)", file=sys.stderr)
             sys.exit(1)
-        # Validate regex patterns at load time
+        # Validate regex patterns at load time.
+        # WARNING: Complex patterns with nested quantifiers (e.g. "(a+)+$")
+        # can cause catastrophic backtracking (ReDoS). Use simple patterns.
         for name, pattern in data["patterns"].items():
             try:
                 re.compile(str(pattern))
