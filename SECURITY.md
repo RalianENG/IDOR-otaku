@@ -4,7 +4,9 @@
 
 | Version | Supported          |
 |---------|--------------------|
-| 0.1.x   | :white_check_mark: |
+| 1.0.x   | :white_check_mark: |
+| 0.3.x   | :white_check_mark: |
+| < 0.3   | :x:                |
 
 ## Reporting a Vulnerability
 
@@ -24,10 +26,14 @@ You can expect an initial response within 72 hours. We will work with you to und
 ## Scope
 
 This policy covers vulnerabilities in the `idotaku` tool itself, including:
-- Code injection through crafted input (config files, report files)
-- Unintended data exposure in generated reports
+- Code injection through crafted input (config files, report files, HAR files)
+- XSS or script injection in HTML exports (`chain --html`, `sequence --html`)
+- Unintended data exposure in generated reports or SARIF/CSV exports
+- SSRF or unintended network access via the `verify` command
+- ReDoS through user-supplied regex patterns in configuration
 - Dependency vulnerabilities
 
 This policy does **not** cover:
 - Vulnerabilities found in systems tested using this tool
 - Issues in mitmproxy or other upstream dependencies (report those to their respective projects)
+- Security of the target systems accessed via `verify` command (users are responsible for obtaining proper authorization)
