@@ -590,7 +590,7 @@ idotaku -i
 
 | Package | Version | Purpose |
 |---------|---------|---------|
-| mitmproxy | >=10.0.0 | Proxy engine |
+| mitmproxy | >=11.0.0 | Proxy engine |
 | click | >=8.0.0 | CLI framework |
 | rich | >=13.0.0 | Terminal output formatting |
 | questionary | >=2.0.0 | Interactive prompts |

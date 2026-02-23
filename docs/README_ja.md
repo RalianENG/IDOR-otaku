@@ -1,11 +1,23 @@
 # IDOR-otaku (idotaku)
 
 [![CI](https://github.com/RalianENG/IDOR-otaku/actions/workflows/ci.yml/badge.svg)](https://github.com/RalianENG/IDOR-otaku/actions/workflows/ci.yml)
+[![Coverage](https://codecov.io/gh/RalianENG/IDOR-otaku/graph/badge.svg)](https://codecov.io/gh/RalianENG/IDOR-otaku)
 [![PyPI version](https://img.shields.io/pypi/v/idotaku)](https://pypi.org/project/idotaku/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python](https://img.shields.io/pypi/pyversions/idotaku)](https://pypi.org/project/idotaku/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
 
-**IDOR-otaku** — mitmproxy ベースの IDOR 検出・検証ツール。通信を傍受し、パラメータの関係性を分析して、安全でない直接オブジェクト参照（IDOR）を検出します。`verify` コマンドで候補の検証も可能。
+**IDOR-otaku** — APIトラフィック内のID流通を追跡し、IDORの攻撃面を発見する偵察ツール。Burp Suite不要。
+
+完全自動検証ツール（Autorize, AuthMatrix）とは異なり、idotaku はIDの_発生元_、リクエスト間の_伝播経路_、そして追跡可能な起源なしに出現するIDを可視化し、テスト開始前に攻撃面を明らかにします。`verify` コマンドで候補を選択的にテストでき、各ステップで明示的な確認を求めます。
+
+### なぜ idotaku？
+
+- **IDライフサイクルの可視化** — IDの発生（レスポンス）と使用（リクエスト）を追跡。パラメータチェーンやAPIシーケンス図をインタラクティブHTMLで表示。
+- **Burp Suite不要** — `pip install idotaku` ですぐに使える。mitmproxyベースのスタンドアロンCLIツール。
+- **HARインポート** — Chrome DevTools、Burp Suite等でキャプチャしたトラフィックを分析。プロキシ設定なしでオフライン分析が可能。
+- **CI/CD対応** — SARIFエクスポートでGitHub Code Scanningに直接統合。CSVエクスポートでカスタムパイプラインにも対応。
+- **検証機能内蔵** — `verify` コマンドで変更リクエストを送信し、各ステップでユーザー確認。プロキシパススルー（Burp/ZAP）対応。
 
 > **IDOR（Insecure Direct Object Reference）** とは、ユーザーIDや注文番号などの内部オブジェクトIDが適切な認可チェックなしに公開され、攻撃者がIDを操作することで他のユーザーのデータにアクセスできてしまう脆弱性です。
 
@@ -37,8 +49,8 @@
 
 ## 動作要件
 
-- Python 3.10+
-- mitmproxy 10.0+
+- Python 3.12+
+- mitmproxy 11.0+
 
 ## インストール
 
@@ -94,7 +106,7 @@ Score  Level     ID Value              Type     Factors
 18     LOW       doc_YzAbCdEfGh...     token    GET, header, token
 ```
 
-![Risk Scores](images/demo-score.png)
+![Risk Scores](https://raw.githubusercontent.com/RalianENG/IDOR-otaku/main/docs/images/demo-score.png)
 
 **パラメータチェーン** と **シーケンス図** はインタラクティブHTMLとしてエクスポート：
 
@@ -104,8 +116,8 @@ Score  Level     ID Value              Type     Factors
 # examples/vulnerable_api/sequence.html  — UML形式APIシーケンス図
 ```
 
-![Chain HTML](images/demo-chain-html.png)
-![Sequence Diagram](images/demo-sequence-html.png)
+![Chain HTML](https://raw.githubusercontent.com/RalianENG/IDOR-otaku/main/docs/images/demo-chain-html.png)
+![Sequence Diagram](https://raw.githubusercontent.com/RalianENG/IDOR-otaku/main/docs/images/demo-sequence-html.png)
 
 詳細は [examples/vulnerable_api/](../examples/vulnerable_api/) を参照、
 または [Quick Start Guide](QUICKSTART.md#try-the-demo) でステップバイステップの手順を確認できます。
@@ -147,10 +159,52 @@ Score  Level     ID Value              Type     Factors
 | `csv` | IDOR候補またはフロー一覧をCSVエクスポート |
 | `sarif` | SARIF 2.1.0形式でエクスポート（GitHub Code Scanning対応） |
 
+## プログラマティックAPI
+
+```python
+from idotaku.report import load_report, score_all_findings, diff_reports
+from idotaku.export import export_csv, export_sarif
+from idotaku.import_har import import_har
+from idotaku.verify import VerifyHttpClient, compare_responses, suggest_modifications
+
+# レポートの読み込みとスコアリング
+data = load_report("report.json")
+scored = score_all_findings(data.potential_idor)
+
+# エクスポート
+export_csv("idor.csv", data, mode="idor")
+export_sarif("findings.sarif.json", data)
+
+# HARインポート
+report = import_har("capture.har")
+
+# 2つのレポートの差分比較
+diff = diff_reports(load_report("old.json"), load_report("new.json"))
+
+# 検証ヘルパー
+suggestions = suggest_modifications("12345", "numeric")
+```
+
+## ユースケース
+
+### バグバウンティの偵察
+ターゲットをブラウジングしながらトラフィックをキャプチャし、レポートを分析して追跡可能な起源なしにリクエストに出現するIDを特定。これらが最初のIDOR候補になります。
+
+### ペネトレーションテストの準備
+手動テストの前に idotaku を実行してID全体像をマッピング。パラメータチェーン分析により、どのAPIシーケンスがIDを共有しているかを可視化し、アクセス制御テストの優先順位付けに活用。
+
+### CI/CDセキュリティゲート
+自動ブラウザテストのHARファイルをインポートし、レポートを生成してSARIF出力。GitHub Code Scanningと統合し、プルリクエストごとに新しいIDOR候補をフラグ。
+
+### キャプチャ済みトラフィックのオフライン分析
+Burp、Chrome DevTools、その他のプロキシで既にキャプチャしたトラフィックがある場合、HARファイルをインポートしてmitmproxyのセットアップなしで分析可能。
+
 ## ドキュメント
 
-- [Quick Start Guide](QUICKSTART.md) (English)
-- [Specification](SPECIFICATION.md) (English)
+- [Quick Start Guide](QUICKSTART.md)
+- [Specification](SPECIFICATION.md)
+- [他ツールとの比較](COMPARISON.md)
+- [English README](https://github.com/RalianENG/IDOR-otaku/blob/main/README.md)
 
 ## コントリビュート
 

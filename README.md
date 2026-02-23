@@ -106,7 +106,7 @@ Score  Level     ID Value              Type     Factors
 18     LOW       doc_YzAbCdEfGh...     token    GET, header, token
 ```
 
-![Risk Scores](docs/images/demo-score.png)
+![Risk Scores](https://raw.githubusercontent.com/RalianENG/IDOR-otaku/main/docs/images/demo-score.png)
 
 **Parameter Chains** and **Sequence Diagrams** are exported as interactive HTML:
 
@@ -116,8 +116,8 @@ Score  Level     ID Value              Type     Factors
 # examples/vulnerable_api/sequence.html  — UML-style API sequence diagram
 ```
 
-![Chain HTML](docs/images/demo-chain-html.png)
-![Sequence Diagram](docs/images/demo-sequence-html.png)
+![Chain HTML](https://raw.githubusercontent.com/RalianENG/IDOR-otaku/main/docs/images/demo-chain-html.png)
+![Sequence Diagram](https://raw.githubusercontent.com/RalianENG/IDOR-otaku/main/docs/images/demo-sequence-html.png)
 
 See [examples/vulnerable_api/](examples/vulnerable_api/) for details, or the
 [Quick Start Guide](https://github.com/RalianENG/IDOR-otaku/blob/main/docs/QUICKSTART.md#try-the-demo)
