@@ -65,6 +65,10 @@ def diff(report_a: str, report_b: str, json_output: str | None) -> None:
     # JSON export
     if json_output:
         diff_dict = diff_to_dict(result)
-        with open(json_output, "w", encoding="utf-8") as f:
-            json.dump(diff_dict, f, indent=2, ensure_ascii=False)
+        try:
+            with open(json_output, "w", encoding="utf-8") as f:
+                json.dump(diff_dict, f, indent=2, ensure_ascii=False)
+        except OSError as e:
+            console.print(f"[red]Error writing diff to {json_output}:[/red] {e}")
+            raise SystemExit(1) from e
         console.print(f"\n[green]Diff exported to:[/green] {json_output}")

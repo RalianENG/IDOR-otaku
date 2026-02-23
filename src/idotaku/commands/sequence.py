@@ -147,10 +147,14 @@ def sequence(report_file: str, limit: int, html_output: str | None) -> None:
 
     # HTML export
     if html_output:
-        export_sequence_html(
-            html_output,
-            cast(list[dict[str, Any]], sorted_flows),
-            cast(dict[str, dict[str, Any]], data.tracked_ids),
-            cast(list[dict[str, Any]], data.potential_idor),
-        )
+        try:
+            export_sequence_html(
+                html_output,
+                cast(list[dict[str, Any]], sorted_flows),
+                cast(dict[str, dict[str, Any]], data.tracked_ids),
+                cast(list[dict[str, Any]], data.potential_idor),
+            )
+        except OSError as e:
+            console.print(f"[red]Error writing HTML to {html_output}:[/red] {e}")
+            raise SystemExit(1) from e
         console.print(f"\n[green]HTML exported to:[/green] {html_output}")

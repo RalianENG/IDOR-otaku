@@ -200,7 +200,8 @@ def export_chain_html(
         tree["nodes"] = nodes
         trees_data.append(tree)
 
-    trees_json = json.dumps(trees_data)
+    # Escape for safe embedding in <script> context (prevent </script> injection)
+    trees_json = json.dumps(trees_data).replace("</", r"<\/")
 
     # Build HTML content
     html_content = f"""<!DOCTYPE html>
@@ -208,6 +209,7 @@ def export_chain_html(
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline';">
     <title>idotaku - Parameter Chain Trees</title>
     <style>
 {CHAIN_STYLES}

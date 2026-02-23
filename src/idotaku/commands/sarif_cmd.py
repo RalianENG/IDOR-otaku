@@ -19,7 +19,11 @@ def sarif_export(report_file: str, output: str) -> None:
     SARIF-compatible security tools.
     """
     data = load_report(report_file)
-    export_sarif(output, data)
+    try:
+        export_sarif(output, data)
+    except OSError as e:
+        console.print(f"[red]Error writing SARIF to {output}:[/red] {e}")
+        raise SystemExit(1) from e
 
     finding_count = len(data.potential_idor)
     console.print(f"[green]SARIF exported to:[/green] {output}")

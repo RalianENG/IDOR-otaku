@@ -339,5 +339,9 @@ def chain(report_file: str, top: int, min_depth: int, html_output: str | None, d
 
     # HTML export
     if html_output:
-        export_chain_html(html_output, sorted_flows, flow_graph, flow_produces, selected_roots)
+        try:
+            export_chain_html(html_output, sorted_flows, flow_graph, flow_produces, selected_roots)
+        except OSError as e:
+            console.print(f"[red]Error writing HTML to {html_output}:[/red] {e}")
+            raise SystemExit(1) from e
         console.print(f"\n[green]HTML exported to:[/green] {html_output}")

@@ -224,7 +224,11 @@ def verify(
 
     # Save results
     if results and not no_save:
-        _save_results(results, output, report_file)
+        try:
+            _save_results(results, output, report_file)
+        except OSError as e:
+            console.print(f"[red]Error saving results to {output}:[/red] {e}")
+            raise SystemExit(1) from e
         console.print(f"\n[green]Results saved:[/green] {output}")
 
     if results:

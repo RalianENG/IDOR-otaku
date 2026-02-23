@@ -26,5 +26,9 @@ def csv_export(report_file: str, output: str | None, mode: str) -> None:
     if output is None:
         output = f"idotaku_{mode}.csv"
 
-    export_csv(output, data, mode=cast(Literal["idor", "flows"], mode))
+    try:
+        export_csv(output, data, mode=cast(Literal["idor", "flows"], mode))
+    except OSError as e:
+        console.print(f"[red]Error writing CSV to {output}:[/red] {e}")
+        raise SystemExit(1) from e
     console.print(f"[green]CSV exported to:[/green] {output}")

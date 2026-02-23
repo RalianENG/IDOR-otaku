@@ -22,9 +22,9 @@ def har_import(har_file: str, output: str, config: str | None) -> None:
     cfg = load_config(config)
     try:
         report = import_har_to_file(har_file, output, cfg)
-    except ValueError as e:
+    except (ValueError, OSError) as e:
         console.print(f"[red]Error:[/red] {e}")
-        return
+        raise SystemExit(1) from e
 
     summary = report.get("summary", {})
     console.print(f"[green]Report generated:[/green] {output}")
