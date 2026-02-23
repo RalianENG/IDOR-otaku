@@ -24,7 +24,7 @@ keywords = [
     "web-security",
 ]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 4 - Beta",
     "Environment :: Console",
     "Intended Audience :: Developers",
     "Intended Audience :: Information Technology",
@@ -36,6 +36,7 @@ classifiers = [
     "Topic :: Internet :: Proxy Servers",
     "Topic :: Security",
     "Topic :: Software Development :: Testing",
+    "Typing :: Typed",
 ]
 dependencies = [
     "mitmproxy>=11.0.0",
@@ -91,37 +92,23 @@ ignore_missing_imports = true
 show_error_codes = true
 exclude = ["venv", ".venv"]
 
-# Strict mode for core modules (gradually enable for others)
+# Strict type checking for all package modules
 [[tool.mypy.overrides]]
 module = [
-    "idotaku.report.models",
-    "idotaku.report.loader",
-    "idotaku.report.scoring",
-    "idotaku.report.diff",
-    "idotaku.report.analysis",
+    "idotaku.report.*",
+    "idotaku.export.*",
+    "idotaku.commands.*",
+    "idotaku.verify.*",
+    "idotaku.utils.*",
     "idotaku.config",
-    "idotaku.export.csv_exporter",
-    "idotaku.export.sarif_exporter",
-    "idotaku.export.html_base",
-    "idotaku.export.chain_exporter",
-    "idotaku.export.sequence_exporter",
     "idotaku.import_har",
     "idotaku.interactive",
     "idotaku.tracker",
-    "idotaku.utils.url",
-    "idotaku.utils.formatting",
 ]
 disallow_untyped_defs = true
 disallow_incomplete_defs = true
 warn_return_any = true
 check_untyped_defs = true
-
-# Modules with known issues - TODO: fix and enable strict checking
-[[tool.mypy.overrides]]
-module = [
-    "idotaku.commands.*",
-]
-ignore_errors = true
 
 [[tool.mypy.overrides]]
 module = "tests.*"

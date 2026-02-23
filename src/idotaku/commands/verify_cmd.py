@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from datetime import datetime, timezone
-from typing import Any, Optional
+from typing import Any, Optional, cast
 from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
 
 import click
@@ -138,7 +138,7 @@ def verify(
 
     while True:
         # Select finding
-        finding = _prompt_select_finding(scored)
+        finding = _prompt_select_finding(cast(list[dict[str, Any]], scored))
         if finding is None:
             break
 
@@ -149,9 +149,11 @@ def verify(
 
         # Build original request from report data
         original_request = _build_request_from_report(
-            finding, usage, data.flows
+            finding, usage, cast(list[dict[str, Any]], data.flows)
         )
-        original_response = _build_original_response(finding, usage, data.flows)
+        original_response = _build_original_response(
+            finding, usage, cast(list[dict[str, Any]], data.flows)
+        )
 
         # Display original request
         _display_request(original_request, "Original Request")
@@ -343,14 +345,15 @@ def _prompt_select_finding(
     if result is None or result == "__quit__":
         return None
 
-    return scored[int(result)]
+    idx: int = int(result)
+    return scored[idx]
 
 
 def _prompt_select_usage(
     finding: dict[str, Any],
 ) -> Optional[dict[str, Any]]:
     """Prompt user to select a specific usage if multiple exist."""
-    usages = finding.get("usages", [])
+    usages: list[dict[str, Any]] = finding.get("usages", [])
     if not usages:
         console.print("[red]No usages found for this finding.[/red]")
         return None
@@ -377,7 +380,8 @@ def _prompt_select_usage(
     if result is None:
         return None
 
-    return usages[int(result)]
+    idx: int = int(result)
+    return usages[idx]
 
 
 def _prompt_auth_headers(request: RequestData) -> RequestData:

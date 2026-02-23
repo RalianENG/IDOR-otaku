@@ -1,5 +1,7 @@
 """Auth context analysis command."""
 
+from typing import Any, cast
+
 import click
 from rich.console import Console
 from rich.table import Table
@@ -12,7 +14,7 @@ console = Console()
 
 @click.command("auth")
 @click.argument("report_file", default="id_tracker_report.json", type=click.Path(exists=True))
-def auth(report_file):
+def auth(report_file: str) -> None:
     """Analyze authentication context and cross-user access patterns.
 
     Detects cases where different auth tokens (users) access the same
@@ -35,7 +37,7 @@ def auth(report_file):
     console.print(f"[dim]{len(flows_with_auth)}/{len(data.flows)} flows have auth context[/dim]")
 
     # Detect cross-user access
-    cross_user = detect_cross_user_access(data.flows)
+    cross_user = detect_cross_user_access(cast(list[dict[str, Any]], data.flows))
 
     if not cross_user:
         console.print("[green]No cross-user access patterns detected.[/green]")

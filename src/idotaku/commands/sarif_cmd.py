@@ -12,7 +12,7 @@ console = Console()
 @click.command("sarif")
 @click.argument("report_file", default="id_tracker_report.json", type=click.Path(exists=True))
 @click.option("--output", "-o", default="idotaku.sarif.json", help="Output SARIF file path")
-def sarif_export(report_file, output):
+def sarif_export(report_file: str, output: str) -> None:
     """Export IDOR findings to SARIF format.
 
     Generates a SARIF 2.1.0 file for GitHub Code Scanning and other

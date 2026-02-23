@@ -22,7 +22,7 @@ LEVEL_COLORS = {
 @click.option("--min-score", default=0, help="Minimum risk score to show (0-100)")
 @click.option("--level", "-l", type=click.Choice(["critical", "high", "medium", "low"]),
               default=None, help="Filter by risk level")
-def score(report_file, min_score, level):
+def score(report_file: str, min_score: int, level: str | None) -> None:
     """Score IDOR candidates by risk severity.
 
     Assigns a risk score (0-100) and level (critical/high/medium/low)

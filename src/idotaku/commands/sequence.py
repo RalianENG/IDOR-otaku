@@ -1,5 +1,6 @@
 """Sequence command - show API call sequence with parameter flow (horizontal timeline)."""
 
+from typing import Any, cast
 from urllib.parse import urlparse
 
 import click
@@ -16,7 +17,7 @@ console = Console()
 @click.argument("report_file", default="id_tracker_report.json", type=click.Path(exists=True))
 @click.option("--limit", "-n", default=30, help="Max number of API calls to show")
 @click.option("--html", "-o", "html_output", default=None, help="Export to interactive HTML file")
-def sequence(report_file, limit, html_output):
+def sequence(report_file: str, limit: int, html_output: str | None) -> None:
     """Show API call sequence with parameter flow (horizontal timeline).
 
     Visualizes the time-ordered sequence of API calls and shows which
@@ -37,7 +38,7 @@ def sequence(report_file, limit, html_output):
 
     # Build param tracking: which params are active at each point
     # param_value -> {first_seen_idx, last_seen_idx, locations: [(idx, direction, location)]}
-    param_tracker = {}
+    param_tracker: dict[str, dict[str, Any]] = {}
 
     for i, flow in enumerate(sorted_flows):
         # Response params (created here)
@@ -148,8 +149,8 @@ def sequence(report_file, limit, html_output):
     if html_output:
         export_sequence_html(
             html_output,
-            sorted_flows,
-            data.tracked_ids,
-            data.potential_idor,
+            cast(list[dict[str, Any]], sorted_flows),
+            cast(dict[str, dict[str, Any]], data.tracked_ids),
+            cast(list[dict[str, Any]], data.potential_idor),
         )
         console.print(f"\n[green]HTML exported to:[/green] {html_output}")

@@ -1,9 +1,7 @@
 """Tests for interactive CLI prompts."""
 
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
 
 from idotaku.interactive import (
     ANALYSIS_COMMANDS,

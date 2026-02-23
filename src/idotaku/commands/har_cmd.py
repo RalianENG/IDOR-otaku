@@ -13,7 +13,7 @@ console = Console()
 @click.argument("har_file", type=click.Path(exists=True))
 @click.option("--output", "-o", default="id_tracker_report.json", help="Output report file")
 @click.option("--config", "-c", default=None, help="Config file path (idotaku.yaml)")
-def har_import(har_file, output, config):
+def har_import(har_file: str, output: str, config: str | None) -> None:
     """Import a HAR file and generate an idotaku report.
 
     Analyzes HTTP traffic captured by browsers (DevTools) or tools like

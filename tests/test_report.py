@@ -2,11 +2,8 @@
 
 import pytest
 
-from idotaku.report import (
-    load_report,
-    ReportLoadError,
-    ReportData,
-    ReportSummary,
+from idotaku.report import load_report, ReportLoadError, ReportData, ReportSummary
+from idotaku.report.analysis import (
     build_param_producer_consumer,
     build_param_flow_mappings,
     build_flow_graph,

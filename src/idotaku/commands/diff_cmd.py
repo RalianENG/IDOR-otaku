@@ -15,7 +15,7 @@ console = Console()
 @click.argument("report_a", type=click.Path(exists=True))
 @click.argument("report_b", type=click.Path(exists=True))
 @click.option("--json-output", "-o", default=None, help="Export diff as JSON file")
-def diff(report_a, report_b, json_output):
+def diff(report_a: str, report_b: str, json_output: str | None) -> None:
     """Compare two reports to see what changed.
 
     REPORT_A is the 'before' report, REPORT_B is the 'after' report.

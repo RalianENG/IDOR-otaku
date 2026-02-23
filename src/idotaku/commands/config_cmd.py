@@ -24,7 +24,7 @@ DEFAULT_FILENAME = "idotaku.yaml"
 
 
 @click.group("config")
-def config():
+def config() -> None:
     """Manage idotaku configuration.
 
     View, create, and modify idotaku.yaml settings.
@@ -35,7 +35,7 @@ def config():
 @click.option("--force", "-f", is_flag=True, help="Overwrite existing config file")
 @click.option("--filename", default=DEFAULT_FILENAME,
               help="Config filename (default: idotaku.yaml)")
-def init(force, filename):
+def init(force: bool, filename: str) -> None:
     """Create a default idotaku.yaml config file in the current directory."""
     target = Path.cwd() / filename
 
@@ -50,7 +50,7 @@ def init(force, filename):
 
 @config.command()
 @click.option("--config", "-c", "config_path", default=None, help="Config file path")
-def show(config_path):
+def show(config_path: str | None) -> None:
     """Show the effective configuration (defaults + config file)."""
     cfg = load_config(config_path)
 
@@ -82,7 +82,7 @@ def show(config_path):
 @config.command()
 @click.argument("key")
 @click.option("--config", "-c", "config_path", default=None, help="Config file path")
-def get(key, config_path):
+def get(key: str, config_path: str | None) -> None:
     """Get a single config value by key.
 
     Supports dotted keys for nested values: patterns.uuid, exclude_extensions, etc.
@@ -117,14 +117,14 @@ def get(key, config_path):
 @click.argument("key")
 @click.argument("value")
 @click.option("--config", "-c", "config_path", default=None, help="Config file path")
-def set_value(key, value, config_path):
+def set_value(key: str, value: str, config_path: str | None) -> None:
     """Set a config value in the YAML file.
 
     For list fields (target_domains, exclude_extensions, etc.),
     pass comma-separated values: idotaku config set target_domains "api.example.com,*.test.com"
     """
     if config_path:
-        path = Path(config_path)
+        path: Path | None = Path(config_path)
     else:
         path = find_config_path()
 
@@ -145,13 +145,13 @@ def set_value(key, value, config_path):
 
 @config.command()
 @click.option("--config", "-c", "config_path", default=None, help="Config file path")
-def validate(config_path):
+def validate(config_path: str | None) -> None:
     """Validate the config file for errors.
 
     Checks YAML syntax, key names, types, and regex patterns.
     """
     if config_path:
-        path = Path(config_path)
+        path: Path | None = Path(config_path)
     else:
         path = find_config_path()
 
@@ -176,7 +176,7 @@ def validate(config_path):
 
 
 @config.command()
-def path():
+def path() -> None:
     """Print the path to the active config file."""
     found = find_config_path()
     if found:

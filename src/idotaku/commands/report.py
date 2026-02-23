@@ -11,7 +11,7 @@ console = Console()
 
 @click.command()
 @click.argument("report_file", default="id_tracker_report.json", type=click.Path(exists=True))
-def report(report_file):
+def report(report_file: str) -> None:
     """View ID tracking report."""
     data = load_report(report_file)
 

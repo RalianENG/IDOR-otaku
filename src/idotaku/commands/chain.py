@@ -1,5 +1,8 @@
 """Chain command - detect and rank parameter chains as trees (main business flows)."""
 
+from __future__ import annotations
+
+from typing import Any, cast
 from urllib.parse import urlparse
 
 import click
@@ -7,19 +10,20 @@ from rich.console import Console
 from rich.tree import Tree
 
 from ..config import IdotakuConfig
-from ..report import load_report, build_param_flow_mappings, build_flow_graph
+from ..report import load_report
+from ..report.analysis import build_param_flow_mappings, build_flow_graph
 from ..export import export_chain_html
 from ..utils import normalize_api_path, extract_domain
 
 console = Console()
 
 
-def escape_rich(text):
+def escape_rich(text: str) -> str:
     """Escape Rich markup characters in text."""
     return str(text).replace("[", "\\[")
 
 
-def format_param(params):
+def format_param(params: list[str] | str) -> str:
     """Format param(s) for display. Accepts single param or list."""
     if isinstance(params, list):
         if len(params) == 0:
@@ -44,7 +48,7 @@ def _parse_domain_filter(domains_str: str | None) -> list[str]:
     return [d.strip() for d in domains_str.split(",") if d.strip()]
 
 
-def _filter_flows_by_domain(flows: list[dict], domain_patterns: list[str]) -> list[dict]:
+def _filter_flows_by_domain(flows: list[dict[str, Any]], domain_patterns: list[str]) -> list[dict[str, Any]]:
     """Filter flows to only include those matching domain patterns."""
     if not domain_patterns:
         return flows
@@ -70,7 +74,7 @@ def _filter_flows_by_domain(flows: list[dict], domain_patterns: list[str]) -> li
 @click.option("--min-depth", "-m", default=2, help="Minimum tree depth")
 @click.option("--html", "-o", "html_output", default=None, help="Export to interactive HTML file")
 @click.option("--domains", "-d", default=None, help="Filter by domains (comma-separated, supports wildcards like *.example.com)")
-def chain(report_file, top, min_depth, html_output, domains):
+def chain(report_file: str, top: int, min_depth: int, html_output: str | None, domains: str | None) -> None:
     """Detect and rank parameter chains as trees (main business flows).
 
     Finds parameter flow trees where:
@@ -94,14 +98,14 @@ def chain(report_file, top, min_depth, html_output, domains):
 
     # Apply domain filter if specified
     if domain_patterns:
-        sorted_flows = _filter_flows_by_domain(data.sorted_flows, domain_patterns)
+        sorted_flows = _filter_flows_by_domain(cast(list[dict[str, Any]], data.sorted_flows), domain_patterns)
         if not sorted_flows:
             console.print("[yellow]No flows found matching domain filter.[/yellow]")
             console.print(f"[dim]Filter: {domains}[/dim]")
             return
         console.print(f"[dim]Filtering by domains: {domains} ({len(sorted_flows)}/{len(data.sorted_flows)} flows)[/dim]")
     else:
-        sorted_flows = data.sorted_flows
+        sorted_flows = cast(list[dict[str, Any]], data.sorted_flows)
 
     # Build mappings using shared analysis functions
     param_origins, param_usages, flow_produces = build_param_flow_mappings(sorted_flows)
@@ -109,7 +113,7 @@ def chain(report_file, top, min_depth, html_output, domains):
     # Build flow graph
     flow_graph = build_flow_graph(param_origins, param_usages)
 
-    def format_api(flow_idx):
+    def format_api(flow_idx: int) -> str:
         """Format API for display."""
         flow = sorted_flows[flow_idx]
         method = flow.get("method", "?")
@@ -121,7 +125,7 @@ def chain(report_file, top, min_depth, html_output, domains):
         path = path.replace("[", "\\[")
         return f"[bold magenta]{method}[/bold magenta] [white]{path}[/white]"
 
-    def calc_tree_depth(flow_idx, visited):
+    def calc_tree_depth(flow_idx: int, visited: set[int]) -> int:
         """Calculate max depth from this flow."""
         if flow_idx in visited:
             return 0
@@ -135,7 +139,7 @@ def chain(report_file, top, min_depth, html_output, domains):
             max_child_depth = max(max_child_depth, child_depth)
         return 1 + max_child_depth
 
-    def count_tree_nodes(flow_idx, visited):
+    def count_tree_nodes(flow_idx: int, visited: set[int]) -> int:
         """Count total nodes in tree."""
         if flow_idx in visited:
             return 0
@@ -145,15 +149,15 @@ def chain(report_file, top, min_depth, html_output, domains):
             count += count_tree_nodes(next_idx, visited.copy())
         return count
 
-    def get_api_key(flow_idx):
+    def get_api_key(flow_idx: int) -> str:
         """Get API key (method + normalized path) for cycle detection."""
         flow = sorted_flows[flow_idx]
         method = flow.get("method", "?")
         url = flow.get("url", "")
         return f"{method} {normalize_api_path(url)}"
 
-    def build_tree_data(flow_idx, via_params, visited_apis, node_index_map, index_counter,
-                        deferred_children, first_occurrence):
+    def build_tree_data(flow_idx: int, via_params: list[str] | None, visited_apis: set[str], node_index_map: dict[int, int], index_counter: list[int],
+                        deferred_children: dict[int, list[dict[str, Any]]], first_occurrence: dict[str, int]) -> dict[str, Any] | None:
         """Build tree data structure with cycle continuation.
 
         Cycle detection is based on API pattern (method + normalized path), not flow_idx.
@@ -185,18 +189,18 @@ def chain(report_file, top, min_depth, html_output, domains):
             if child:
                 # If child is a ref, defer its grandchildren to the cycle target
                 if child.get("type") == "ref":
-                    target_index = child.get("target_index")
+                    ref_target = cast(int, child.get("target_index"))
                     target_idx = next_idx  # The skipped node's flow_idx
                     for gc_idx, gc_params in flow_graph.get(target_idx, []):
                         gc_api = get_api_key(gc_idx)
                         if gc_idx != target_idx and gc_api not in new_visited:
-                            if target_index not in deferred_children:
-                                deferred_children[target_index] = []
+                            if ref_target not in deferred_children:
+                                deferred_children[ref_target] = []
                             gc = build_tree_data(gc_idx, gc_params, new_visited, node_index_map,
                                                index_counter, deferred_children, first_occurrence)
                             if gc:
                                 gc["from_cycle"] = True
-                                deferred_children[target_index].append(gc)
+                                deferred_children[ref_target].append(gc)
                 children.append(child)
 
         return {
@@ -208,7 +212,7 @@ def chain(report_file, top, min_depth, html_output, domains):
             "children": children,
         }
 
-    def inject_deferred(node, deferred_children):
+    def inject_deferred(node: dict[str, Any] | None, deferred_children: dict[int, list[dict[str, Any]]]) -> None:
         """Inject deferred children into target nodes."""
         if not node or node.get("type") == "ref":
             return
@@ -219,11 +223,11 @@ def chain(report_file, top, min_depth, html_output, domains):
         for child in node.get("children", []):
             inject_deferred(child, deferred_children)
 
-    def render_tree_node(node, parent_tree, is_root=False):
+    def render_tree_node(node: dict[str, Any], parent_tree: Tree, is_root: bool = False) -> None:
         """Render tree data to Rich Tree."""
         if node.get("type") == "ref":
             target = node.get("target_index", "?")
-            via = format_param(node.get("via_params")) if node.get("via_params") else ""
+            via = format_param(cast(list[str] | str, node.get("via_params"))) if node.get("via_params") else ""
             parent_tree.add(f"[dim]↩ \\[#{target}] via {via} [italic](continues below)[/italic][/dim]")
             return
 
@@ -271,7 +275,7 @@ def chain(report_file, top, min_depth, html_output, domains):
         if flow_idx not in covered_flows:
             selected_roots.append((score, depth, nodes, flow_idx))
             # Mark all flows in this tree as covered
-            def mark_covered(idx, visited):
+            def mark_covered(idx: int, visited: set[int]) -> None:
                 if idx in visited:
                     return
                 visited.add(idx)
@@ -295,11 +299,11 @@ def chain(report_file, top, min_depth, html_output, domains):
 
     for rank, (score, depth, nodes, root_idx) in enumerate(selected_roots, 1):
         # Initialize tracking for this tree
-        node_index_map = {}
+        node_index_map: dict[int, int] = {}
         index_counter = [1]
-        deferred_children = {}
-        visited_apis = set()
-        first_occurrence = {}
+        deferred_children: dict[int, list[dict[str, Any]]] = {}
+        visited_apis: set[str] = set()
+        first_occurrence: dict[str, int] = {}
 
         # Build tree data with cycle continuation
         tree_data = build_tree_data(root_idx, None, visited_apis, node_index_map, index_counter,
@@ -307,6 +311,9 @@ def chain(report_file, top, min_depth, html_output, domains):
 
         # Inject deferred children into their targets
         inject_deferred(tree_data, deferred_children)
+
+        if tree_data is None:
+            continue
 
         # Create Rich Tree for display
         # Note: \[ escapes the bracket in Rich markup to display literal [#N]

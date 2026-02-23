@@ -1,5 +1,7 @@
 """CSV export command."""
 
+from typing import Literal, cast
+
 import click
 from rich.console import Console
 
@@ -14,7 +16,7 @@ console = Console()
 @click.option("--output", "-o", default=None, help="Output CSV file path")
 @click.option("--mode", "-m", type=click.Choice(["idor", "flows"]), default="idor",
               help="Export mode: idor (IDOR candidates) or flows (all flows)")
-def csv_export(report_file, output, mode):
+def csv_export(report_file: str, output: str | None, mode: str) -> None:
     """Export report data to CSV format.
 
     Exports IDOR candidates or flow records as CSV for spreadsheet analysis.
@@ -24,5 +26,5 @@ def csv_export(report_file, output, mode):
     if output is None:
         output = f"idotaku_{mode}.csv"
 
-    export_csv(output, data, mode=mode)
+    export_csv(output, data, mode=cast(Literal["idor", "flows"], mode))
     console.print(f"[green]CSV exported to:[/green] {output}")

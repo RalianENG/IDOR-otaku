@@ -1,23 +1,7 @@
 """Report loading and analysis for idotaku."""
 
 from .loader import load_report, ReportLoadError
-from .models import (
-    ReportData,
-    ReportSummary,
-    TrackedID,
-    FlowRecord,
-    FlowID,
-    IDOccurrence,
-    IDORTarget,
-)
-from .analysis import (
-    build_param_producer_consumer,
-    build_param_flow_mappings,
-    build_flow_graph,
-    build_api_dependencies,
-    build_id_transition_map,
-    find_chain_roots,
-)
+from .models import ReportData, ReportSummary
 from .scoring import score_idor_finding, score_all_findings, RiskScore
 from .diff import diff_reports, diff_to_dict, DiffResult
 from .auth_analysis import (
@@ -26,28 +10,24 @@ from .auth_analysis import (
     CrossUserAccess,
 )
 
+# Public API — only symbols listed here are part of the stable interface.
+# Internal helpers (models, analysis functions) should be imported
+# directly from their submodules (e.g. from idotaku.report.analysis import ...).
 __all__ = [
+    # Core
     "load_report",
     "ReportLoadError",
     "ReportData",
     "ReportSummary",
-    "TrackedID",
-    "FlowRecord",
-    "FlowID",
-    "IDOccurrence",
-    "IDORTarget",
-    "build_param_producer_consumer",
-    "build_param_flow_mappings",
-    "build_flow_graph",
-    "build_api_dependencies",
-    "build_id_transition_map",
-    "find_chain_roots",
+    # Scoring
     "score_idor_finding",
     "score_all_findings",
     "RiskScore",
+    # Diff
     "diff_reports",
     "diff_to_dict",
     "DiffResult",
+    # Auth analysis
     "detect_cross_user_access",
     "enrich_idor_with_auth",
     "CrossUserAccess",
