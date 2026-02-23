@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
-## [0.3.0] - 2025-02
+## [0.3.0] - 2026-02
 
 ### Added
 
@@ -16,22 +16,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/), and this
 - **Auth Context Tracking**: `auth` command detects cross-user access patterns by tracking Authorization headers and session cookies per flow
 - **CSV Export**: `csv` command exports IDOR candidates or flow records to CSV for spreadsheet analysis
 - **SARIF Export**: `sarif` command exports findings to SARIF 2.1.0 format for GitHub Code Scanning and other security tool integrations
-- Programmatic API: all new features are importable (`from idotaku.report import score_all_findings, diff_reports`)
+- **Programmatic API**: stable public API defined via `__all__` in `report/`, `export/`, and `verify/` packages
 - **Configuration Management**: `config` command group with `init`, `show`, `get`, `set`, `validate`, `path` subcommands for managing `idotaku.yaml` from the CLI
 - **Interactive Setup Wizard**: config setup wizard in interactive mode (`-i`) for editing settings via questionary prompts
+- **PEP 561 support**: `py.typed` marker file and `Typing :: Typed` PyPI classifier for downstream type checking
 
 ### Changed
 
 - Interactive mode now includes all new commands (score, verify, diff, auth, csv, sarif, import-har, config)
 - Tracker now captures authentication context (Authorization header, session cookies) per flow
 - Documentation translated to English (QUICKSTART.md, SPECIFICATION.md)
+- Development Status upgraded from Alpha to Beta
+- mypy strict mode enabled for all package modules (commands/, report/, export/, verify/, utils/)
+- Public API surface narrowed: internal helpers removed from `__all__`, importable via direct submodule paths
+- Test coverage improved from 88% to 96% (728 tests)
 
 ### Fixed
 
 - Use defensive `dict.get()` access across all modules to prevent KeyError on malformed report data
 - Add error handling for HAR file and report file loading with user-friendly error messages
 - Add guard clauses for empty ID values in lifeline, sequence, and auth analysis
-- Resolve ruff lint errors (unused imports, unused variables, ambiguous variable names)
+- Resolve ruff and mypy errors across all modules (64+ type errors fixed in commands/)
 
 ## [0.1.0] - 2024
 

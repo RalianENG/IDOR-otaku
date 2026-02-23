@@ -430,5 +430,5 @@ class TestHarImportCommand:
             f.write("not json")
 
         result = runner.invoke(main, ["import-har", str(har_file)])
-        assert result.exit_code == 0  # Handled gracefully
+        assert result.exit_code == 1
         assert "Error" in result.output

@@ -161,13 +161,15 @@ def export_sequence_html(
         potential_idor: Potential IDOR targets from report
     """
     seq_data = _build_sequence_data(sorted_flows, tracked_ids, potential_idor)
-    seq_json = json.dumps(seq_data)
+    # Escape for safe embedding in <script> context (prevent </script> injection)
+    seq_json = json.dumps(seq_data).replace("</", r"<\/")
 
     html_content = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline';">
     <title>idotaku - API Sequence Diagram</title>
     <style>
 {SEQUENCE_STYLES}

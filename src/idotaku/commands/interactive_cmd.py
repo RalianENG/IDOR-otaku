@@ -4,7 +4,7 @@ import click
 
 
 @click.command("interactive")
-def interactive():
+def interactive() -> None:
     """Launch interactive mode with guided menus.
 
     Use arrow keys to navigate, Enter to select.

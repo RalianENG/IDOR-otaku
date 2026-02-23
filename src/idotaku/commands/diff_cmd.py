@@ -15,7 +15,7 @@ console = Console()
 @click.argument("report_a", type=click.Path(exists=True))
 @click.argument("report_b", type=click.Path(exists=True))
 @click.option("--json-output", "-o", default=None, help="Export diff as JSON file")
-def diff(report_a, report_b, json_output):
+def diff(report_a: str, report_b: str, json_output: str | None) -> None:
     """Compare two reports to see what changed.
 
     REPORT_A is the 'before' report, REPORT_B is the 'after' report.
@@ -65,6 +65,10 @@ def diff(report_a, report_b, json_output):
     # JSON export
     if json_output:
         diff_dict = diff_to_dict(result)
-        with open(json_output, "w", encoding="utf-8") as f:
-            json.dump(diff_dict, f, indent=2, ensure_ascii=False)
+        try:
+            with open(json_output, "w", encoding="utf-8") as f:
+                json.dump(diff_dict, f, indent=2, ensure_ascii=False)
+        except OSError as e:
+            console.print(f"[red]Error writing diff to {json_output}:[/red] {e}")
+            raise SystemExit(1) from e
         console.print(f"\n[green]Diff exported to:[/green] {json_output}")

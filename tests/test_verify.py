@@ -13,7 +13,6 @@ from idotaku.verify.models import (
     Modification,
     RequestData,
     ResponseData,
-    SuggestedValue,
     VerifyResult,
 )
 from idotaku.verify.suggestions import CUSTOM_INPUT, suggest_modifications
