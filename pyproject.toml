@@ -41,7 +41,7 @@ classifiers = [
 dependencies = [
     "mitmproxy>=11.0.0,<13",
     "click>=8.0.0,<9",
-    "rich>=13.0.0,<14",
+    "rich>=13.0.0,<15",
     "questionary>=2.0.0,<3",
     "httpx>=0.25.0,<1",
 ]
