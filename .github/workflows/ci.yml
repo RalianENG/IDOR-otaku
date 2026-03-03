@@ -59,7 +59,7 @@ jobs:
         run: cyclonedx-py environment -o sbom.json --output-format json
 
       - name: Upload SBOM
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: sbom
           path: sbom.json
